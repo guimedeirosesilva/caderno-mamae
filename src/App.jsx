@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PlusCircle, Trash2, CheckCircle, Wallet, 
-  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock
+  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
-  signInAnonymously, 
   onAuthStateChanged, 
   signInWithCustomToken, 
   GoogleAuthProvider, 
@@ -17,18 +16,22 @@ import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query 
 } from 'firebase/firestore';
 
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 // --- Configuração do Firebase ---
-// NOTA PARA DEPLOY: Quando você criar seu projeto no Firebase,
-// substitua as variáveis abaixo pelas chaves reais do seu projeto.
+// No seu projeto local (VSCode), você deve usar as variáveis de ambiente.
+// Abaixo está o código adaptado para não dar erro aqui no chat.
+
 const firebaseConfig = {
-      // Coloque suas chaves aqui quando for fazer o deploy real
-      apiKey: "AIzaSyDxfcj_QTyCxGucSbJqDbVJN_PM2nuZbGo",
-      authDomain: "controle-financeiro-mae.firebaseapp.com",
-      projectId: "controle-financeiro-mae",
-      storageBucket: "controle-financeiro-mae.firebasestorage.app",
-      messagingSenderId: "187604711565",
-      appId: "1:187604711565:web:1acae368bf43a63bbacac4"
-    };
+  apiKey: import.meta.env.VITE_API_KEY,
+  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID
+};
+
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -87,8 +90,8 @@ const GraficoMensal = ({ entradas, saidas }) => {
   );
 };
 
-// --- Componente de Login ---
-const LoginScreen = ({ onLoginGoogle, onLoginAnonimo, loading }) => (
+// --- Componente de Login (LIMPO - SEM BOTÃO ANÔNIMO) ---
+const LoginScreen = ({ onLoginGoogle, loading }) => (
   <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center p-6 text-white text-center">
     <div className="bg-white/10 p-6 rounded-full mb-6 backdrop-blur-sm">
       <Wallet className="w-16 h-16" />
@@ -110,18 +113,6 @@ const LoginScreen = ({ onLoginGoogle, onLoginAnonimo, loading }) => (
             Entrar com Google
           </>
         )}
-      </button>
-
-      <div className="relative py-2">
-        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-indigo-400/30"></span></div>
-        <div className="relative flex justify-center text-xs uppercase"><span className="bg-indigo-600 px-2 text-indigo-300">ou (modo teste)</span></div>
-      </div>
-
-      <button 
-        onClick={onLoginAnonimo}
-        className="w-full bg-indigo-800/50 text-indigo-200 text-sm font-bold py-3 rounded-2xl hover:bg-indigo-800 transition-all"
-      >
-        Entrar sem cadastro
       </button>
       
       <p className="text-xs text-indigo-300 mt-6 flex items-center justify-center gap-1">
@@ -146,16 +137,40 @@ export default function CadernoDigital() {
   const [dataForm, setDataForm] = useState(new Date().toISOString().substr(0, 10));
   const [filtro, setFiltro] = useState('todos'); 
   const [salvando, setSalvando] = useState(false);
+  
+  // Estado para controlar carregamento do PDF no modo preview
+  const [pdfLibsLoaded, setPdfLibsLoaded] = useState(false);
+
+  // Carrega bibliotecas PDF via CDN para o PREVIEW (não necessário se usar npm install localmente)
+  useEffect(() => {
+    const loadScript = (src) => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+    };
+
+    // Só carrega via CDN se window.jspdf não existir (ou seja, não foi importado via npm)
+    if (!window.jspdf) {
+      Promise.all([
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js')
+      ]).then(() => setPdfLibsLoaded(true)).catch(() => console.log('Erro CDN PDF'));
+    } else {
+      setPdfLibsLoaded(true);
+    }
+  }, []);
 
   // 1. Autenticação
   useEffect(() => {
-    // Verifica se já está logado
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
     });
 
-    // Se estiver no ambiente de preview (Canvas), tenta logar automaticamente para demonstração
     const autoLoginPreview = async () => {
       if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
          await signInWithCustomToken(auth, __initial_auth_token);
@@ -169,9 +184,6 @@ export default function CadernoDigital() {
   // 2. Conexão com Banco de Dados
   useEffect(() => {
     if (!user) return;
-
-    // AQUI ESTÁ O SEGREDO DO "PRIVADO":
-    // Usamos 'user.uid' no caminho. Cada usuário só lê/escreve na sua própria pasta.
     const q = query(collection(db, 'artifacts', appId, 'users', user.uid, 'transacoes'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -197,17 +209,6 @@ export default function CadernoDigital() {
     } catch (error) {
       console.error("Erro login Google:", error);
       alert("Erro ao conectar com Google. Tente novamente.");
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  const handleAnonLogin = async () => {
-    setLoginLoading(true);
-    try {
-      await signInAnonymously(auth);
-    } catch (error) {
-      console.error("Erro login anonimo:", error);
     } finally {
       setLoginLoading(false);
     }
@@ -276,6 +277,10 @@ export default function CadernoDigital() {
 
   const formatarMoeda = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const formatarDataDia = (d) => d.split('-')[2];
+  const formatarDataBr = (d) => {
+    const [ano, mes, dia] = d.split('-');
+    return `${dia}/${mes}/${ano}`;
+  };
 
   const listaFinal = transacoesDoMes.filter(t => {
     if (filtro === 'todos') return true;
@@ -284,11 +289,64 @@ export default function CadernoDigital() {
     return true;
   });
 
+  // --- GERADOR DE PDF ---
+  const gerarRelatorioPDF = () => {
+    // Tenta usar a versão importada (local) ou a versão CDN (preview)
+    const jsPDFClass = window.jspdf ? window.jspdf.jsPDF : null; // Se estiver usando import local, descomentar imports lá em cima
+    
+    // NOTA PARA VSCODE: Se você descomentou "import jsPDF from 'jspdf'", 
+    // substitua a linha acima e abaixo por: const doc = new jsPDF();
+    
+    if (!jsPDFClass && !window.jspdf) {
+      alert("Biblioteca PDF carregando ou não encontrada. Se estiver local, verifique os imports.");
+      return;
+    }
+
+    // Instancia o PDF (adaptando se for CDN ou Import normal)
+    const doc = jsPDFClass ? new jsPDFClass() : new window.jspdf.jsPDF();
+    
+    // Título
+    doc.setFontSize(18);
+    doc.setTextColor(79, 70, 229);
+    doc.text(`Relatório Financeiro - ${nomeDoMes}`, 14, 22);
+    
+    // Resumo
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text(`Entradas: ${formatarMoeda(totalEntradas)}`, 14, 32);
+    doc.text(`Saídas: ${formatarMoeda(totalSaidasGeral)}`, 14, 38);
+    doc.text(`Saldo Final: ${formatarMoeda(saldoDoMes)}`, 14, 44);
+
+    // Tabela
+    const tabelaDados = listaFinal.map(item => [
+      formatarDataBr(item.data),
+      item.descricao,
+      item.tipo === 'entrada' ? 'Entrada' : 'Saída',
+      item.tipo === 'saida' ? (item.pago ? 'Pago' : 'Pendente') : '-',
+      formatarMoeda(item.valor)
+    ]);
+
+    // Chama o autoTable (compatível com CDN ou Import)
+    doc.autoTable({
+      startY: 50,
+      head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor']],
+      body: tabelaDados,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] },
+      styles: { fontSize: 10 },
+      columnStyles: {
+        4: { fontStyle: 'bold', halign: 'right' }
+      }
+    });
+
+    doc.save(`relatorio_${nomeDoMes.replace(' ', '_')}.pdf`);
+  };
+
   // --- Renderização Condicional ---
   if (loading) return <div className="min-h-screen bg-indigo-600 flex items-center justify-center"><Loader2 className="text-white animate-spin w-8 h-8"/></div>;
 
   if (!user) {
-    return <LoginScreen onLoginGoogle={handleGoogleLogin} onLoginAnonimo={handleAnonLogin} loading={loginLoading} />;
+    return <LoginScreen onLoginGoogle={handleGoogleLogin} loading={loginLoading} />;
   }
 
   return (
@@ -302,9 +360,18 @@ export default function CadernoDigital() {
               <Wallet className="w-5 h-5" />
               Controle da Mamãe
             </h1>
-            <button onClick={handleLogout} title="Sair" className="p-2 bg-indigo-700 hover:bg-indigo-800 rounded-full transition-colors">
-              <LogOut className="w-4 h-4 text-indigo-200" />
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={gerarRelatorioPDF} 
+                title="Baixar PDF" 
+                className={`p-2 rounded-full transition-colors ${pdfLibsLoaded ? 'bg-indigo-500 hover:bg-indigo-400' : 'bg-indigo-800 opacity-50'}`}
+              >
+                <FileText className="w-4 h-4 text-white" />
+              </button>
+              <button onClick={handleLogout} title="Sair" className="p-2 bg-indigo-700 hover:bg-indigo-800 rounded-full transition-colors">
+                <LogOut className="w-4 h-4 text-indigo-200" />
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-center mb-6">
@@ -333,7 +400,7 @@ export default function CadernoDigital() {
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-slate-400">
                     <Cloud className="w-3 h-3 text-emerald-500" />
-                    Salvo em: {user.isAnonymous ? 'Modo Teste' : user.email}
+                    Salvo em: {user.email}
                   </div>
                 </div>
                 <div className="flex-shrink-0">
