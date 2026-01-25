@@ -15,35 +15,44 @@ import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query
 } from 'firebase/firestore';
 
-// --- INSTRUÇÕES PARA O SEU VSCODE (PASSO 1) ---
-// No seu projeto local, você DEVE remover as duas barras (//) do início das linhas abaixo:
+// --- INSTRUÇÕES PARA O SEU VSCODE (PDF) ---
+// Se você instalou 'jspdf' via npm, DESCOMENTE as duas linhas abaixo para melhor performance:
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
 
 // --- LISTA VIP (SEGURANÇA) ---
 const EMAILS_PERMITIDOS = [
-  "seu.email@gmail.com",       // Substitua pelo seu
-  "email.da.mae@gmail.com"     // Substitua pelo da sua mãe
+  "guimedeirosesilva@gmail.com",
+  "elaineeemedeiros@gmail.com",
+  "homeroohs@gmail.com",
+  "fernandomedeiros90@gmail.com"
 ];
 
-// --- Configuração do Firebase ---
-// --- INSTRUÇÕES PARA O SEU VSCODE (PASSO 2) ---
-// No seu projeto local, substitua o bloco 'firebaseConfig' abaixo por este código:
-/*
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_API_KEY,
-  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_APP_ID
-};
-*/
+// --- Configuração do Firebase (Automática) ---
+let firebaseConfig;
 
-// (Este bloco abaixo é apenas para o PREVIEW funcionar aqui no chat, não use no VSCode)
-const firebaseConfig = typeof __firebase_config !== 'undefined'
-  ? JSON.parse(__firebase_config)
-  : { apiKey: "demo-mode" };
+try {
+  // Tenta pegar as chaves do arquivo .env (Vercel/Local)
+  if (import.meta.env && import.meta.env.VITE_API_KEY) {
+    firebaseConfig = {
+      apiKey: import.meta.env.VITE_API_KEY,
+      authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+      projectId: import.meta.env.VITE_PROJECT_ID,
+      storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_APP_ID
+    };
+  }
+} catch (e) {
+  // Ignora erro se import.meta não existir (ambiente de teste)
+}
+
+// Se não achou as chaves acima, tenta configuração interna (Preview do Chat)
+if (!firebaseConfig) {
+  firebaseConfig = typeof __firebase_config !== 'undefined'
+    ? JSON.parse(__firebase_config)
+    : { apiKey: "demo-mode", projectId: "demo-project" }; // ProjectId dummy para evitar o erro "Uncaught FirebaseError"
+}
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -166,7 +175,7 @@ export default function CadernoDigital() {
   // Controle de carregamento de PDF
   const [pdfLibsLoaded, setPdfLibsLoaded] = useState(false);
 
-  // Carrega PDF via CDN apenas para o preview
+  // Carrega PDF via CDN apenas se não foi importado (Fallback)
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.jspdf) {
       const loadScript = (src) => new Promise((resolve) => {
@@ -342,12 +351,16 @@ export default function CadernoDigital() {
   // --- GERADOR DE PDF ---
   const gerarRelatorioPDF = () => {
     try {
+      // Tenta usar jsPDF importado ou do window (cdn)
       const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : null;
-      if (!jsPDFConstructor) {
-        alert("Erro: Biblioteca PDF não carregada. Verifique os imports no código.");
+      // Se você descomentar o import lá em cima, troque a linha acima por: const doc = new jsPDF();
+
+      if (!jsPDFConstructor && typeof jsPDF === 'undefined') {
+        alert("Erro: Biblioteca PDF não carregada.");
         return;
       }
-      const doc = new jsPDFConstructor();
+
+      const doc = jsPDFConstructor ? new jsPDFConstructor() : new jsPDF();
 
       doc.setFontSize(18);
       doc.setTextColor(79, 70, 229);
@@ -362,23 +375,22 @@ export default function CadernoDigital() {
       doc.text(`Saídas: ${formatarMoeda(totalSaidasGeral)}`, 14, 43);
       doc.text(`Saldo Final: ${formatarMoeda(saldoDoMes)}`, 14, 49);
 
-      // Adicionamos a coluna de Observações no PDF também
       const tabelaDados = listaFinal.map(item => [
         formatarDataBr(item.data),
         item.descricao,
         item.tipo === 'entrada' ? 'Entrada' : 'Saída',
         item.tipo === 'saida' ? (item.pago ? 'Pago' : 'Pendente') : '-',
         formatarMoeda(item.valor),
-        item.observacoes || '-' // Mostra observações se houver
+        item.observacoes || '-'
       ]);
 
       doc.autoTable({
         startY: 55,
-        head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor', 'Obs']], // Nova coluna no cabeçalho
+        head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor', 'Obs']],
         body: tabelaDados,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
-        styles: { fontSize: 8 }, // Fonte menor para caber
+        styles: { fontSize: 8 },
         columnStyles: { 4: { fontStyle: 'bold', halign: 'right' } }
       });
 
@@ -442,7 +454,6 @@ export default function CadernoDigital() {
           </div>
 
           <div className="flex flex-col gap-6">
-            {/* Cards de Resumo (Igual) */}
             <div className="bg-white text-slate-800 rounded-3xl p-5 shadow-xl">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
