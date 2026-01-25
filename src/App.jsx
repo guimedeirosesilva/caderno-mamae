@@ -545,8 +545,7 @@ export default function CadernoDigital() {
               <div 
                 key={item.id} 
                 className={`relative overflow-hidden bg-white p-4 rounded-2xl shadow-sm border transition-all flex items-center gap-3 group
-                  ${item.tipo === 'entrada' ? 'border-emerald-100' : 'border-rose-100'}
-                  ${item.tipo === 'saida' && item.pago ? 'opacity-60 bg-slate-50' : 'opacity-100'}
+                  ${item.tipo === 'entrada' ? 'border-emerald-100' : (item.pago ? 'border-blue-100 bg-blue-50/30' : 'border-rose-100')}
                 `}
               >
                 <div className="flex flex-col items-center justify-center pr-3 border-r border-slate-100 min-w-[3rem]">
@@ -564,7 +563,7 @@ export default function CadernoDigital() {
                       onClick={() => alternarStatus(item)}
                       className={`w-10 h-10 rounded-full flex items-center justify-center transition-all
                         ${item.pago 
-                          ? 'bg-slate-200 text-slate-400' 
+                          ? 'bg-blue-100 text-blue-500 hover:bg-blue-200' 
                           : 'bg-rose-100 text-rose-500 hover:bg-rose-200 shadow-sm'}
                       `}
                      >
@@ -574,10 +573,10 @@ export default function CadernoDigital() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`font-bold truncate text-slate-800 ${item.pago && item.tipo === 'saida' ? 'line-through text-slate-400' : ''}`}>
+                  <p className={`font-bold truncate text-slate-800 ${item.pago && item.tipo === 'saida' ? 'line-through text-blue-900/40' : ''}`}>
                     {item.descricao}
                   </p>
-                  <p className="text-xs text-slate-400 flex items-center gap-1">
+                  <p className={`text-xs flex items-center gap-1 ${item.pago && item.tipo === 'saida' ? 'text-blue-400' : 'text-slate-400'}`}>
                     {item.tipo === 'saida' && (item.pago ? 'Pago' : 'Pendente')}
                     {item.tipo === 'entrada' && 'Recebido'}
                   </p>
@@ -589,7 +588,7 @@ export default function CadernoDigital() {
                 </div>
 
                 <div className="text-right">
-                  <div className={`font-bold font-mono text-sm ${item.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <div className={`font-bold font-mono text-sm ${item.tipo === 'entrada' ? 'text-emerald-600' : (item.pago ? 'text-blue-400' : 'text-rose-600')}`}>
                     {item.tipo === 'entrada' ? '+' : '-'}{formatarMoeda(item.valor)}
                   </div>
                   
