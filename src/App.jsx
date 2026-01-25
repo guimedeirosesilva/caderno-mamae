@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PlusCircle, Trash2, CheckCircle, Wallet, 
-  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save, PiggyBank, Landmark, Plus, LayoutList, Table as TableIcon, FileSpreadsheet
+  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save, PiggyBank, Landmark, Plus, FileSpreadsheet
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 
 // --- INSTRUÇÕES PARA O SEU VSCODE (PDF) ---
-// Se você instalou 'jspdf' via npm, DESCOMENTE as duas linhas abaixo para melhor performance:
+// Se você instalou 'jspdf' via npm, DESCOMENTE as duas linhas abaixo para funcionar no Vercel:
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
 
@@ -174,7 +174,6 @@ export default function CadernoDigital() {
   
   // Estados de Visualização
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' ou 'table'
   const [tipo, setTipo] = useState('saida'); 
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
@@ -183,7 +182,7 @@ export default function CadernoDigital() {
   const [salvando, setSalvando] = useState(false);
   const [itemEmEdicao, setItemEmEdicao] = useState(null);
   const [pdfLibsLoaded, setPdfLibsLoaded] = useState(false);
-  const [modalPDF, setModalPDF] = useState(false); // Modal de escolha do PDF
+  const [modalPDF, setModalPDF] = useState(false);
 
   // Carrega PDF via CDN
   useEffect(() => {
@@ -416,30 +415,51 @@ export default function CadernoDigital() {
   // --- GERADORES DE PDF ---
   const gerarPDF = (tipoRelatorio) => {
     try {
-      const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : null;
-      if (!jsPDFConstructor) { alert("Erro PDF."); return; }
-      const doc = new jsPDFConstructor();
+      // Tenta detectar a biblioteca PDF (npm importado ou CDN)
+      let doc;
+      let autoTableFunc;
+
+      if (typeof jsPDF !== 'undefined') {
+        doc = new jsPDF(); // Veio do import (npm)
+        // Se importou autoTable via npm, ele geralmente precisa ser chamado como função ou já está no doc
+        autoTableFunc = typeof autoTable !== 'undefined' ? autoTable : null;
+      } else if (window.jspdf) {
+        const { jsPDF } = window.jspdf;
+        doc = new jsPDF(); // Veio do CDN
+        autoTableFunc = null; // CDN anexa ao doc automaticamente
+      } else {
+        alert("Erro: Biblioteca PDF não encontrada. Verifique se 'npm install jspdf' foi rodado e os imports descomentados.");
+        return;
+      }
+
+      // Helper para chamar a tabela independente da origem
+      const criarTabela = (opcoes) => {
+        if (autoTableFunc) {
+          autoTableFunc(doc, opcoes);
+        } else if (doc.autoTable) {
+          doc.autoTable(opcoes);
+        } else {
+          alert("Erro: Plugin de Tabela não encontrado.");
+        }
+      };
       
       if (tipoRelatorio === 'extrato') {
         // --- MODO EXTRATO ---
         doc.setFontSize(18); doc.setTextColor(20, 20, 20);
         doc.text(`Extrato Bancário - ${nomeDoMes}`, 14, 22);
         
-        // Cabeçalho de Extrato
         doc.setFontSize(10); doc.setTextColor(100);
         const saldoAnterior = calcularSaldoAnterior();
         doc.text(`Saldo Anterior: ${formatarMoeda(saldoAnterior)}`, 14, 32);
         doc.text(`Cliente: ${getPrimeiroNome()}`, 14, 38);
 
-        // Gera linhas com saldo acumulado
         let saldoCorrente = saldoAnterior;
-        // Ordena por data crescente para o extrato fazer sentido
         const transacoesOrdenadas = [...transacoesDoMes].sort((a, b) => new Date(a.data) - new Date(b.data));
         
         const tabelaDados = transacoesOrdenadas.map(item => {
           let valorItem = 0;
           if (item.tipo === 'entrada') valorItem = item.valor;
-          else if (item.pago) valorItem = -item.valor; // Saída paga ou investimento
+          else if (item.pago) valorItem = -item.valor; 
           
           saldoCorrente += valorItem;
           
@@ -447,16 +467,16 @@ export default function CadernoDigital() {
             formatarDataBr(item.data),
             item.descricao + (item.observacoes ? ` (${item.observacoes})` : ''),
             item.tipo === 'entrada' ? 'Entrada' : (item.tipo === 'investimento' ? 'Aplic.' : 'Saída'),
-            valorItem !== 0 ? formatarMoeda(item.valor) : '-', // Mostra valor
-            formatarMoeda(saldoCorrente) // Saldo Acumulado
+            valorItem !== 0 ? formatarMoeda(item.valor) : '-', 
+            formatarMoeda(saldoCorrente)
           ];
         });
 
-        doc.autoTable({
+        criarTabela({
           startY: 45,
           head: [['Data', 'Descrição', 'Tipo', 'Valor', 'Saldo Acum.']], 
-          body: tabelaDados, theme: 'striped', // Extrato fica melhor listrado
-          headStyles: { fillColor: [50, 50, 50] }, // Cinza escuro para extrato
+          body: tabelaDados, theme: 'striped',
+          headStyles: { fillColor: [50, 50, 50] },
           styles: { fontSize: 9 }, 
           columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } }
         });
@@ -464,7 +484,7 @@ export default function CadernoDigital() {
         doc.text(`Saldo Final do Período: ${formatarMoeda(saldoCorrente)}`, 14, doc.lastAutoTable.finalY + 10);
 
       } else {
-        // --- MODO RESUMO (Antigo) ---
+        // --- MODO RESUMO ---
         doc.setFontSize(18); doc.setTextColor(79, 70, 229);
         doc.text(`Relatório Gerencial - ${nomeDoMes}`, 14, 22);
         doc.setFontSize(10); doc.setTextColor(150);
@@ -485,7 +505,7 @@ export default function CadernoDigital() {
           formatarMoeda(item.valor), item.observacoes || '-' 
         ]);
 
-        doc.autoTable({
+        criarTabela({
           startY: 75,
           head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor', 'Obs']], 
           body: tabelaDados, theme: 'grid', headStyles: { fillColor: [79, 70, 229] },
@@ -495,7 +515,10 @@ export default function CadernoDigital() {
 
       doc.save(`${tipoRelatorio}_${nomeDoMes.replace(' ', '_')}.pdf`);
       setModalPDF(false);
-    } catch (err) { alert("Erro ao gerar PDF."); }
+    } catch (err) { 
+      console.error(err);
+      alert("Erro ao gerar PDF. Verifique se o pacote 'jspdf' está instalado e descomentado."); 
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-indigo-600 flex items-center justify-center"><Loader2 className="text-white animate-spin w-8 h-8"/></div>;
@@ -519,24 +542,6 @@ export default function CadernoDigital() {
               </h1>
             </div>
             <div className="flex gap-2">
-              {/* Botão de View Mode (NOVO) */}
-              <div className="bg-indigo-700 rounded-full p-1 flex">
-                <button 
-                  onClick={() => setViewMode('cards')} 
-                  className={`p-1.5 rounded-full transition-all ${viewMode === 'cards' ? 'bg-white text-indigo-700' : 'text-indigo-300 hover:text-white'}`}
-                  title="Visão Cartões"
-                >
-                  <LayoutList className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => setViewMode('table')} 
-                  className={`p-1.5 rounded-full transition-all ${viewMode === 'table' ? 'bg-white text-indigo-700' : 'text-indigo-300 hover:text-white'}`}
-                  title="Visão Tabela"
-                >
-                  <TableIcon className="w-4 h-4" />
-                </button>
-              </div>
-
               <button onClick={() => setModalPDF(true)} title="Baixar PDF" className="p-2 bg-indigo-500 hover:bg-indigo-400 rounded-full transition-colors"><FileText className="w-4 h-4 text-white" /></button>
               <button onClick={handleLogout} title="Sair" className="p-2 bg-indigo-700 hover:bg-indigo-800 rounded-full transition-colors"><LogOut className="w-4 h-4 text-indigo-200" /></button>
             </div>
@@ -629,111 +634,59 @@ export default function CadernoDigital() {
           </div>
         )}
 
-        {/* --- LÓGICA DE EXIBIÇÃO: CARDS VS TABLE --- */}
-        {listaFinal.length === 0 ? (
-          <div className="text-center py-12 px-6 bg-white rounded-3xl border border-dashed border-slate-200">
-            <div className="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-300"><Calendar className="w-8 h-8" /></div>
-            <p className="text-slate-500 font-medium">Nenhuma anotação.</p>
-          </div>
-        ) : (
-          viewMode === 'cards' ? (
-            // --- VISÃO CARTÕES (Lúdica) ---
-            <div className="space-y-3">
-              {listaFinal.map((item) => (
-                <div 
-                  key={item.id} 
-                  className={`relative overflow-hidden bg-white p-4 rounded-2xl shadow-sm border transition-all flex items-center gap-3 group
-                    ${item.tipo === 'entrada' ? 'border-emerald-100' : (item.tipo === 'investimento' ? 'border-amber-100 bg-amber-50/20' : (item.pago ? 'border-blue-100 bg-blue-50/30' : 'border-rose-100'))}
-                  `}
-                >
-                  <div className="flex flex-col items-center justify-center pr-3 border-r border-slate-100 min-w-[3rem]">
-                     <span className="text-lg font-bold text-slate-700">{formatarDataDia(item.data)}</span>
-                     <span className="text-[10px] text-slate-400 uppercase font-bold">Dia</span>
-                  </div>
-                  <div>
-                     {item.tipo === 'entrada' && <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center"><TrendingUp className="w-5 h-5" /></div>}
-                     {item.tipo === 'investimento' && <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><PiggyBank className="w-5 h-5" /></div>}
-                     {item.tipo === 'saida' && (
-                       <button onClick={() => alternarStatus(item)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${item.pago ? 'bg-blue-100 text-blue-500 hover:bg-blue-200' : 'bg-rose-100 text-rose-500 hover:bg-rose-200 shadow-sm'}`}>
-                         {item.pago ? <CheckCircle className="w-5 h-5" /> : <div className="w-4 h-4 border-2 border-current rounded-md"></div>}
-                       </button>
-                     )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-bold truncate text-slate-800 ${item.pago && item.tipo === 'saida' ? 'line-through text-blue-900/40' : ''}`}>{item.descricao}</p>
-                    <p className={`text-xs flex items-center gap-1 ${item.tipo === 'investimento' ? 'text-amber-600 font-medium' : (item.pago && item.tipo === 'saida' ? 'text-blue-400' : 'text-slate-400')}`}>
-                      {item.tipo === 'saida' && (item.pago ? 'Pago' : 'Pendente')}
-                      {item.tipo === 'entrada' && 'Recebido'}
-                      {item.tipo === 'investimento' && 'Guardado'}
-                    </p>
-                    {item.observacoes && <p className="text-[10px] text-slate-400 mt-1 italic truncate max-w-[150px]">obs: {item.observacoes}</p>}
-                  </div>
-                  <div className="text-right">
-                    <div className={`font-bold font-mono text-sm ${item.tipo === 'entrada' ? 'text-emerald-600' : (item.tipo === 'investimento' ? 'text-amber-600' : (item.pago ? 'text-blue-400' : 'text-rose-600'))}`}>
-                      {item.tipo === 'entrada' ? '+' : '-'}{formatarMoeda(item.valor)}
-                    </div>
-                    <div className="flex justify-end gap-1 mt-1">
-                      <button onClick={() => setItemEmEdicao(item)} className="text-slate-300 hover:text-indigo-500 transition-colors p-1"><Edit3 className="w-4 h-4" /></button>
-                      <button onClick={() => removerTransacao(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1 opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        {/* Lista de Transações */}
+        <div className="space-y-3">
+          {listaFinal.length === 0 ? (
+            <div className="text-center py-12 px-6 bg-white rounded-3xl border border-dashed border-slate-200">
+              <div className="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-300"><Calendar className="w-8 h-8" /></div>
+              <p className="text-slate-500 font-medium">Nenhuma anotação neste filtro.</p>
             </div>
           ) : (
-            // --- VISÃO TABELA (Profissional) ---
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px]">
-                    <tr>
-                      <th className="p-3">Data</th>
-                      <th className="p-3">Descrição</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3 text-right">Valor</th>
-                      <th className="p-3 text-center">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {listaFinal.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-mono text-slate-600">{formatarDataBr(item.data)}</td>
-                        <td className="p-3">
-                          <div className="font-bold text-slate-700">{item.descricao}</div>
-                          {item.observacoes && <div className="text-[10px] text-slate-400 italic truncate max-w-[120px]">{item.observacoes}</div>}
-                        </td>
-                        <td className="p-3">
-                          {item.tipo === 'entrada' && <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Entrada</span>}
-                          {item.tipo === 'investimento' && <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Guardado</span>}
-                          {item.tipo === 'saida' && (
-                            <button 
-                              onClick={() => alternarStatus(item)}
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 w-fit
-                                ${item.pago ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'}
-                              `}
-                            >
-                              {item.pago ? 'Pago' : 'Pendente'}
-                            </button>
-                          )}
-                        </td>
-                        <td className={`p-3 text-right font-mono font-bold ${item.tipo === 'entrada' ? 'text-emerald-600' : (item.tipo === 'investimento' ? 'text-amber-600' : 'text-rose-600')}`}>
-                          {item.tipo === 'entrada' ? '+' : '-'}{formatarMoeda(item.valor)}
-                        </td>
-                        <td className="p-3 flex justify-center gap-1">
-                          <button onClick={() => setItemEmEdicao(item)} className="p-1.5 hover:bg-indigo-50 text-indigo-400 rounded-lg"><Edit3 className="w-3 h-3" /></button>
-                          <button onClick={() => removerTransacao(item.id)} className="p-1.5 hover:bg-rose-50 text-rose-400 rounded-lg"><Trash2 className="w-3 h-3" /></button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            listaFinal.map((item) => (
+              <div 
+                key={item.id} 
+                className={`relative overflow-hidden bg-white p-4 rounded-2xl shadow-sm border transition-all flex items-center gap-3 group
+                  ${item.tipo === 'entrada' ? 'border-emerald-100' : (item.tipo === 'investimento' ? 'border-amber-100 bg-amber-50/20' : (item.pago ? 'border-blue-100 bg-blue-50/30' : 'border-rose-100'))}
+                `}
+              >
+                <div className="flex flex-col items-center justify-center pr-3 border-r border-slate-100 min-w-[3rem]">
+                   <span className="text-lg font-bold text-slate-700">{formatarDataDia(item.data)}</span>
+                   <span className="text-[10px] text-slate-400 uppercase font-bold">Dia</span>
+                </div>
+                <div>
+                   {item.tipo === 'entrada' && <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center"><TrendingUp className="w-5 h-5" /></div>}
+                   {item.tipo === 'investimento' && <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><PiggyBank className="w-5 h-5" /></div>}
+                   {item.tipo === 'saida' && (
+                     <button onClick={() => alternarStatus(item)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${item.pago ? 'bg-blue-100 text-blue-500 hover:bg-blue-200' : 'bg-rose-100 text-rose-500 hover:bg-rose-200 shadow-sm'}`}>
+                       {item.pago ? <CheckCircle className="w-5 h-5" /> : <div className="w-4 h-4 border-2 border-current rounded-md"></div>}
+                     </button>
+                   )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`font-bold truncate text-slate-800 ${item.pago && item.tipo === 'saida' ? 'line-through text-blue-900/40' : ''}`}>{item.descricao}</p>
+                  <p className={`text-xs flex items-center gap-1 ${item.tipo === 'investimento' ? 'text-amber-600 font-medium' : (item.pago && item.tipo === 'saida' ? 'text-blue-400' : 'text-slate-400')}`}>
+                    {item.tipo === 'saida' && (item.pago ? 'Pago' : 'Pendente')}
+                    {item.tipo === 'entrada' && 'Recebido'}
+                    {item.tipo === 'investimento' && 'Guardado'}
+                  </p>
+                  {item.observacoes && <p className="text-[10px] text-slate-400 mt-1 italic truncate max-w-[150px]">obs: {item.observacoes}</p>}
+                </div>
+                <div className="text-right">
+                  <div className={`font-bold font-mono text-sm ${item.tipo === 'entrada' ? 'text-emerald-600' : (item.tipo === 'investimento' ? 'text-amber-600' : (item.pago ? 'text-blue-400' : 'text-rose-600'))}`}>
+                    {item.tipo === 'entrada' ? '+' : '-'}{formatarMoeda(item.valor)}
+                  </div>
+                  <div className="flex justify-end gap-1 mt-1">
+                    <button onClick={() => setItemEmEdicao(item)} className="text-slate-300 hover:text-indigo-500 transition-colors p-1"><Edit3 className="w-4 h-4" /></button>
+                    <button onClick={() => removerTransacao(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1 opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
               </div>
-            </div>
-          )
-        )}
+            ))
+          )}
+        </div>
       </main>
 
-      {/* Modal de Escolha de PDF (NOVO) */}
+      {/* Modal de Escolha de PDF */}
       {modalPDF && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative">
