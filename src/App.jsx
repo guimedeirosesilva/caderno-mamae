@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import {
-  PlusCircle, Trash2, CheckCircle, Wallet,
-  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save
+import { 
+  PlusCircle, Trash2, CheckCircle, Wallet, 
+  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save, DollarSign, PiggyBank
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut
+import { 
+  getAuth, 
+  onAuthStateChanged, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut 
 } from 'firebase/auth';
-import {
-  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query
+import { 
+  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query 
 } from 'firebase/firestore';
 
 // --- INSTRUÇÕES PARA O SEU VSCODE (PDF) ---
@@ -49,9 +49,9 @@ try {
 
 // Se não achou as chaves acima, tenta configuração interna (Preview do Chat)
 if (!firebaseConfig) {
-  firebaseConfig = typeof __firebase_config !== 'undefined'
-    ? JSON.parse(__firebase_config)
-    : { apiKey: "demo-mode", projectId: "demo-project" }; // ProjectId dummy para evitar o erro "Uncaught FirebaseError"
+  firebaseConfig = typeof __firebase_config !== 'undefined' 
+    ? JSON.parse(__firebase_config) 
+    : { apiKey: "demo-mode", projectId: "demo-project" }; 
 }
 
 const app = initializeApp(firebaseConfig);
@@ -93,8 +93,8 @@ const GraficoMensal = ({ entradas, saidas }) => {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700">
-          <span className="text-xs font-bold uppercase text-slate-400">Movimento</span>
-          <span className="text-sm font-bold">{Math.round(percentualEntrada)}% Entrou</span>
+           <span className="text-xs font-bold uppercase text-slate-400">Movimento</span>
+           <span className="text-sm font-bold">{Math.round(percentualEntrada)}% Entrou</span>
         </div>
       </div>
       <div className="flex gap-4 mt-2 text-xs font-bold">
@@ -132,7 +132,7 @@ const LoginScreen = ({ onLoginGoogle, loading, erroPermissao }) => (
     )}
 
     <div className="w-full max-w-sm space-y-4">
-      <button
+      <button 
         onClick={onLoginGoogle}
         disabled={loading}
         className="w-full bg-white text-indigo-900 font-bold py-4 rounded-2xl shadow-lg hover:bg-indigo-50 transition-all flex items-center justify-center gap-3"
@@ -144,7 +144,7 @@ const LoginScreen = ({ onLoginGoogle, loading, erroPermissao }) => (
           </>
         )}
       </button>
-
+      
       <p className="text-xs text-indigo-300 mt-6 flex items-center justify-center gap-1">
         <Lock className="w-3 h-3" /> Acesso restrito à família.
       </p>
@@ -159,17 +159,17 @@ export default function CadernoDigital() {
   const [loading, setLoading] = useState(true);
   const [loginLoading, setLoginLoading] = useState(false);
   const [erroPermissao, setErroPermissao] = useState(false);
-
+  
   // Estados de Visualização
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
-  const [tipo, setTipo] = useState('saida');
+  const [tipo, setTipo] = useState('saida'); 
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [dataForm, setDataForm] = useState(new Date().toISOString().substr(0, 10));
-  const [filtro, setFiltro] = useState('todos');
+  const [filtro, setFiltro] = useState('todos'); 
   const [salvando, setSalvando] = useState(false);
-
-  // ESTADO PARA EDIÇÃO (NOVO)
+  
+  // Estado para Edição
   const [itemEmEdicao, setItemEmEdicao] = useState(null);
 
   // Controle de carregamento de PDF
@@ -178,18 +178,18 @@ export default function CadernoDigital() {
   // Carrega PDF via CDN apenas se não foi importado (Fallback)
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.jspdf) {
-      const loadScript = (src) => new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = resolve;
-        document.body.appendChild(script);
-      });
-      Promise.all([
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js')
-      ]).then(() => setPdfLibsLoaded(true));
+        const loadScript = (src) => new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = resolve;
+          document.body.appendChild(script);
+        });
+        Promise.all([
+          loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+          loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js')
+        ]).then(() => setPdfLibsLoaded(true));
     } else {
-      setPdfLibsLoaded(true);
+        setPdfLibsLoaded(true);
     }
   }, []);
 
@@ -276,8 +276,8 @@ export default function CadernoDigital() {
     try {
       await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'transacoes'), {
         tipo, descricao, valor: parseFloat(valor), data: dataForm,
-        pago: tipo === 'entrada' ? true : false,
-        observacoes: "", // Campo novo inicia vazio
+        pago: tipo === 'entrada' ? true : false, 
+        observacoes: "",
         criadoEm: new Date().toISOString()
       });
       setDescricao(''); setValor('');
@@ -298,11 +298,11 @@ export default function CadernoDigital() {
     }
   };
 
-  // --- NOVA FUNÇÃO: SALVAR EDIÇÃO ---
+  // --- Salvar Edição ---
   const salvarEdicao = async (e) => {
     e.preventDefault();
     if (!user || !itemEmEdicao) return;
-
+    
     try {
       const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'transacoes', itemEmEdicao.id);
       await updateDoc(docRef, {
@@ -311,14 +311,14 @@ export default function CadernoDigital() {
         data: itemEmEdicao.data,
         observacoes: itemEmEdicao.observacoes || ""
       });
-      setItemEmEdicao(null); // Fecha o modal
+      setItemEmEdicao(null); 
     } catch (err) {
       console.error("Erro ao editar:", err);
       alert("Erro ao salvar alterações.");
     }
   };
 
-  // --- Cálculos ---
+  // --- CÁLCULOS DO MÊS ---
   const nomeDoMes = dataVisualizacao.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const mesAtual = dataVisualizacao.getMonth();
   const anoAtual = dataVisualizacao.getFullYear();
@@ -333,6 +333,13 @@ export default function CadernoDigital() {
   const totalSaidasPagas = transacoesDoMes.filter(t => t.tipo === 'saida' && t.pago).reduce((acc, curr) => acc + curr.valor, 0);
   const totalSaidasPendentes = transacoesDoMes.filter(t => t.tipo === 'saida' && !t.pago).reduce((acc, curr) => acc + curr.valor, 0);
   const saldoDoMes = totalEntradas - totalSaidasPagas;
+
+  // --- CÁLCULOS TOTAIS (ACUMULADO) ---
+  const saldoTotalAcumulado = transacoes.reduce((acc, t) => {
+    if (t.tipo === 'entrada') return acc + t.valor;
+    if (t.tipo === 'saida' && t.pago) return acc - t.valor;
+    return acc;
+  }, 0);
 
   const formatarMoeda = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const formatarDataDia = (d) => d.split('-')[2];
@@ -351,29 +358,26 @@ export default function CadernoDigital() {
   // --- GERADOR DE PDF ---
   const gerarRelatorioPDF = () => {
     try {
-      // Tenta usar jsPDF importado ou do window (cdn)
       const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : null;
-      // Se você descomentar o import lá em cima, troque a linha acima por: const doc = new jsPDF();
-
-      if (!jsPDFConstructor && typeof jsPDF === 'undefined') {
-        alert("Erro: Biblioteca PDF não carregada.");
-        return;
+      if (!jsPDFConstructor) {
+         alert("Erro: Biblioteca PDF não carregada. Verifique os imports no código.");
+         return;
       }
-
-      const doc = jsPDFConstructor ? new jsPDFConstructor() : new jsPDF();
-
+      const doc = new jsPDFConstructor();
+      
       doc.setFontSize(18);
       doc.setTextColor(79, 70, 229);
       doc.text(`Relatório Financeiro - ${nomeDoMes}`, 14, 22);
       doc.setFontSize(10);
       doc.setTextColor(150);
       doc.text(`Gerado por: ${getPrimeiroNome()}`, 14, 27);
-
+      
       doc.setFontSize(12);
       doc.setTextColor(100);
-      doc.text(`Entradas: ${formatarMoeda(totalEntradas)}`, 14, 37);
-      doc.text(`Saídas: ${formatarMoeda(totalSaidasGeral)}`, 14, 43);
-      doc.text(`Saldo Final: ${formatarMoeda(saldoDoMes)}`, 14, 49);
+      doc.text(`Entradas (Mês): ${formatarMoeda(totalEntradas)}`, 14, 37);
+      doc.text(`Pago (Mês): ${formatarMoeda(totalSaidasPagas)}`, 14, 43);
+      doc.text(`Saldo do Mês: ${formatarMoeda(saldoDoMes)}`, 14, 49);
+      doc.text(`Saldo Acumulado Total: ${formatarMoeda(saldoTotalAcumulado)}`, 14, 55);
 
       const tabelaDados = listaFinal.map(item => [
         formatarDataBr(item.data),
@@ -381,16 +385,16 @@ export default function CadernoDigital() {
         item.tipo === 'entrada' ? 'Entrada' : 'Saída',
         item.tipo === 'saida' ? (item.pago ? 'Pago' : 'Pendente') : '-',
         formatarMoeda(item.valor),
-        item.observacoes || '-'
+        item.observacoes || '-' 
       ]);
 
       doc.autoTable({
-        startY: 55,
-        head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor', 'Obs']],
+        startY: 60,
+        head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor', 'Obs']], 
         body: tabelaDados,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
-        styles: { fontSize: 8 },
+        styles: { fontSize: 8 }, 
         columnStyles: { 4: { fontStyle: 'bold', halign: 'right' } }
       });
 
@@ -401,7 +405,7 @@ export default function CadernoDigital() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-indigo-600 flex items-center justify-center"><Loader2 className="text-white animate-spin w-8 h-8" /></div>;
+  if (loading) return <div className="min-h-screen bg-indigo-600 flex items-center justify-center"><Loader2 className="text-white animate-spin w-8 h-8"/></div>;
 
   if (!user) {
     return <LoginScreen onLoginGoogle={handleGoogleLogin} loading={loginLoading} erroPermissao={erroPermissao} />;
@@ -409,11 +413,11 @@ export default function CadernoDigital() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
-
+      
       {/* Cabeçalho */}
       <header className="bg-indigo-600 text-white pb-8 pt-6 shadow-lg rounded-b-[2.5rem] mb-6 relative z-10">
         <div className="max-w-md mx-auto px-4">
-
+          
           <div className="flex items-center justify-between mb-6">
             <div>
               <span className="text-xs font-medium text-indigo-200 block mb-0.5 animate-in fade-in slide-in-from-bottom-2 duration-700">
@@ -424,11 +428,11 @@ export default function CadernoDigital() {
                 Controle da Mamãe
               </h1>
             </div>
-
+            
             <div className="flex gap-2">
-              <button
-                onClick={gerarRelatorioPDF}
-                title="Baixar PDF"
+              <button 
+                onClick={gerarRelatorioPDF} 
+                title="Baixar PDF" 
                 className="p-2 bg-indigo-500 hover:bg-indigo-400 rounded-full transition-colors"
               >
                 <FileText className="w-4 h-4 text-white" />
@@ -440,7 +444,7 @@ export default function CadernoDigital() {
           </div>
 
           <div className="flex items-center justify-center mb-6">
-            <div className="flex items-center bg-indigo-700 rounded-full px-1 p-1 shadow-inner border border-indigo-500/30">
+             <div className="flex items-center bg-indigo-700 rounded-full px-1 p-1 shadow-inner border border-indigo-500/30">
               <button onClick={() => navegarMes(-1)} className="p-1 hover:bg-indigo-500 rounded-full transition-colors">
                 <ChevronLeft className="w-5 h-5 text-indigo-100" />
               </button>
@@ -453,12 +457,13 @@ export default function CadernoDigital() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
+            {/* Card Principal: Saldo do Mês */}
             <div className="bg-white text-slate-800 rounded-3xl p-5 shadow-xl">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">
-                    Saldo ({dataVisualizacao.toLocaleDateString('pt-BR', { month: 'short' })})
+                    Saldo do Mês
                   </span>
                   <div className={`text-3xl font-bold mb-2 ${saldoDoMes >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                     {formatarMoeda(saldoDoMes)}
@@ -474,22 +479,35 @@ export default function CadernoDigital() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-emerald-500/20 bg-opacity-25 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex flex-col justify-between h-24">
-                <div className="flex items-center gap-2 text-emerald-100 mb-1">
-                  <div className="p-1 bg-emerald-500/20 rounded-lg"><TrendingUp className="w-4 h-4 text-white" /></div>
-                  <span className="text-xs font-bold">Total Entrou</span>
-                </div>
-                <span className="text-xl font-bold text-white">{formatarMoeda(totalEntradas)}</span>
+            {/* Grid de Informações: Entrou | Pago | A Pagar */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-emerald-500/20 bg-opacity-25 backdrop-blur-md border border-white/20 rounded-2xl p-2 flex flex-col justify-center items-center text-center h-20">
+                <span className="text-[10px] font-bold text-emerald-100 uppercase mb-1">Entrou</span>
+                <span className="text-sm font-bold text-white leading-tight">{formatarMoeda(totalEntradas)}</span>
               </div>
-              <div className="bg-rose-500/20 bg-opacity-25 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex flex-col justify-between h-24">
-                <div className="flex items-center gap-2 text-rose-100 mb-1">
-                  <div className="p-1 bg-rose-500/20 rounded-lg"><TrendingDown className="w-4 h-4 text-white" /></div>
-                  <span className="text-xs font-bold">Falta Pagar</span>
-                </div>
-                <span className="text-xl font-bold text-white">{formatarMoeda(totalSaidasPendentes)}</span>
+              <div className="bg-amber-500/20 bg-opacity-25 backdrop-blur-md border border-white/20 rounded-2xl p-2 flex flex-col justify-center items-center text-center h-20">
+                 <span className="text-[10px] font-bold text-amber-100 uppercase mb-1">Pago</span>
+                 <span className="text-sm font-bold text-white leading-tight">{formatarMoeda(totalSaidasPagas)}</span>
+              </div>
+              <div className="bg-rose-500/20 bg-opacity-25 backdrop-blur-md border border-white/20 rounded-2xl p-2 flex flex-col justify-center items-center text-center h-20">
+                 <span className="text-[10px] font-bold text-rose-100 uppercase mb-1">Falta</span>
+                 <span className="text-sm font-bold text-white leading-tight">{formatarMoeda(totalSaidasPendentes)}</span>
               </div>
             </div>
+
+            {/* Novo Card: Saldo Total Acumulado */}
+            <div className="bg-indigo-800/50 backdrop-blur-md border border-indigo-400/30 rounded-2xl p-4 flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                 <div className="bg-indigo-500 p-2 rounded-full text-white">
+                   <PiggyBank className="w-5 h-5" />
+                 </div>
+                 <div>
+                   <span className="text-xs text-indigo-200 font-bold uppercase block">Caixa Total (Acumulado)</span>
+                   <span className="text-lg font-bold text-white">{formatarMoeda(saldoTotalAcumulado)}</span>
+                 </div>
+               </div>
+            </div>
+
           </div>
         </div>
       </header>
@@ -502,8 +520,8 @@ export default function CadernoDigital() {
                 key={f}
                 onClick={() => setFiltro(f)}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all capitalize
-                  ${filtro === f
-                    ? 'bg-slate-800 text-white shadow-md'
+                  ${filtro === f 
+                    ? 'bg-slate-800 text-white shadow-md' 
                     : 'text-slate-400 hover:bg-slate-50'
                   }`}
               >
@@ -524,35 +542,35 @@ export default function CadernoDigital() {
             </div>
           ) : (
             listaFinal.map((item) => (
-              <div
-                key={item.id}
+              <div 
+                key={item.id} 
                 className={`relative overflow-hidden bg-white p-4 rounded-2xl shadow-sm border transition-all flex items-center gap-3 group
                   ${item.tipo === 'entrada' ? 'border-emerald-100' : 'border-rose-100'}
                   ${item.tipo === 'saida' && item.pago ? 'opacity-60 bg-slate-50' : 'opacity-100'}
                 `}
               >
                 <div className="flex flex-col items-center justify-center pr-3 border-r border-slate-100 min-w-[3rem]">
-                  <span className="text-lg font-bold text-slate-700">{formatarDataDia(item.data)}</span>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">Dia</span>
+                   <span className="text-lg font-bold text-slate-700">{formatarDataDia(item.data)}</span>
+                   <span className="text-[10px] text-slate-400 uppercase font-bold">Dia</span>
                 </div>
 
                 <div>
-                  {item.tipo === 'entrada' ? (
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5" />
-                    </div>
-                  ) : (
-                    <button
+                   {item.tipo === 'entrada' ? (
+                     <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center">
+                       <TrendingUp className="w-5 h-5" />
+                     </div>
+                   ) : (
+                     <button 
                       onClick={() => alternarStatus(item)}
                       className={`w-10 h-10 rounded-full flex items-center justify-center transition-all
-                        ${item.pago
-                          ? 'bg-slate-200 text-slate-400'
+                        ${item.pago 
+                          ? 'bg-slate-200 text-slate-400' 
                           : 'bg-rose-100 text-rose-500 hover:bg-rose-200 shadow-sm'}
                       `}
-                    >
-                      {item.pago ? <CheckCircle className="w-5 h-5" /> : <div className="w-4 h-4 border-2 border-current rounded-md"></div>}
-                    </button>
-                  )}
+                     >
+                       {item.pago ? <CheckCircle className="w-5 h-5" /> : <div className="w-4 h-4 border-2 border-current rounded-md"></div>}
+                     </button>
+                   )}
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -563,7 +581,6 @@ export default function CadernoDigital() {
                     {item.tipo === 'saida' && (item.pago ? 'Pago' : 'Pendente')}
                     {item.tipo === 'entrada' && 'Recebido'}
                   </p>
-                  {/* Se tiver observação, mostra um ícone pequeno */}
                   {item.observacoes && (
                     <p className="text-[10px] text-slate-400 mt-1 italic truncate max-w-[150px]">
                       obs: {item.observacoes}
@@ -575,18 +592,16 @@ export default function CadernoDigital() {
                   <div className={`font-bold font-mono text-sm ${item.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {item.tipo === 'entrada' ? '+' : '-'}{formatarMoeda(item.valor)}
                   </div>
-
+                  
                   <div className="flex justify-end gap-1 mt-1">
-                    {/* Botão de EDITAR (Novo) */}
-                    <button
+                    <button 
                       onClick={() => setItemEmEdicao(item)}
                       className="text-slate-300 hover:text-indigo-500 transition-colors p-1"
                       title="Editar e ver detalhes"
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
-                    {/* Botão de Apagar */}
-                    <button
+                    <button 
                       onClick={() => removerTransacao(item.id)}
                       className="text-slate-300 hover:text-rose-500 transition-colors p-1 opacity-0 group-hover:opacity-100"
                       title="Excluir"
@@ -601,12 +616,12 @@ export default function CadernoDigital() {
         </div>
       </main>
 
-      {/* --- MODAL DE EDIÇÃO E OBSERVAÇÕES (NOVO) --- */}
+      {/* --- MODAL DE EDIÇÃO --- */}
       {itemEmEdicao && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative">
-            <button
-              onClick={() => setItemEmEdicao(null)}
+            <button 
+              onClick={() => setItemEmEdicao(null)} 
               className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
             >
               <X className="w-5 h-5 text-slate-500" />
@@ -623,7 +638,7 @@ export default function CadernoDigital() {
                 <input
                   type="text"
                   value={itemEmEdicao.descricao}
-                  onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, descricao: e.target.value })}
+                  onChange={(e) => setItemEmEdicao({...itemEmEdicao, descricao: e.target.value})}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 />
@@ -636,7 +651,7 @@ export default function CadernoDigital() {
                     type="number"
                     step="0.01"
                     value={itemEmEdicao.valor}
-                    onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, valor: e.target.value })}
+                    onChange={(e) => setItemEmEdicao({...itemEmEdicao, valor: e.target.value})}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
@@ -646,27 +661,26 @@ export default function CadernoDigital() {
                   <input
                     type="date"
                     value={itemEmEdicao.data}
-                    onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, data: e.target.value })}
+                    onChange={(e) => setItemEmEdicao({...itemEmEdicao, data: e.target.value})}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
                 </div>
               </div>
 
-              {/* CAMPO DE OBSERVAÇÕES (NOVO) */}
               <div>
                 <label className="text-xs font-bold text-slate-400 ml-1">Observações (Banco, Juros, etc)</label>
                 <textarea
                   rows="3"
                   value={itemEmEdicao.observacoes || ""}
-                  onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, observacoes: e.target.value })}
+                  onChange={(e) => setItemEmEdicao({...itemEmEdicao, observacoes: e.target.value})}
                   placeholder="Ex: Pago no banco X com juros..."
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
                 ></textarea>
               </div>
 
-              <button
-                type="submit"
+              <button 
+                type="submit" 
                 className="bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 mt-2 shadow-lg shadow-indigo-200"
               >
                 <Save className="w-5 h-5" />
@@ -677,52 +691,52 @@ export default function CadernoDigital() {
         </div>
       )}
 
-      {/* Formulário Fixo (Rodapé) */}
+      {/* Formulário Fixo */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 pb-8 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30">
         <div className="max-w-md mx-auto">
           <form onSubmit={adicionarTransacao} className="flex flex-col gap-3">
-            <div className="flex gap-2">
-              <div className="flex bg-slate-100 rounded-xl p-1 shrink-0">
-                <button type="button" onClick={() => setTipo('entrada')} className={`p-3 rounded-lg transition-all ${tipo === 'entrada' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400'}`}>
-                  <TrendingUp className="w-5 h-5" />
+             <div className="flex gap-2">
+                <div className="flex bg-slate-100 rounded-xl p-1 shrink-0">
+                  <button type="button" onClick={() => setTipo('entrada')} className={`p-3 rounded-lg transition-all ${tipo === 'entrada' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400'}`}>
+                    <TrendingUp className="w-5 h-5" />
+                  </button>
+                  <button type="button" onClick={() => setTipo('saida')} className={`p-3 rounded-lg transition-all ${tipo === 'saida' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400'}`}>
+                    <TrendingDown className="w-5 h-5" />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Nome (Ex: Luz, Bolo)"
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:outline-none focus:border-indigo-500"
+                  required
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="R$"
+                  value={valor}
+                  onChange={(e) => setValor(e.target.value)}
+                  className="w-24 bg-slate-50 border border-slate-200 rounded-xl px-2 text-center font-mono focus:outline-none focus:border-indigo-500"
+                  required
+                />
+                <button type="submit" disabled={salvando} className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 shadow-md disabled:opacity-50 flex items-center justify-center min-w-[50px]">
+                  {salvando ? <Loader2 className="w-6 h-6 animate-spin" /> : <PlusCircle className="w-6 h-6" />}
                 </button>
-                <button type="button" onClick={() => setTipo('saida')} className={`p-3 rounded-lg transition-all ${tipo === 'saida' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400'}`}>
-                  <TrendingDown className="w-5 h-5" />
-                </button>
-              </div>
-              <input
-                type="text"
-                placeholder="Nome (Ex: Luz, Bolo)"
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:outline-none focus:border-indigo-500"
-                required
-              />
-              <input
-                type="number"
-                step="0.01"
-                placeholder="R$"
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                className="w-24 bg-slate-50 border border-slate-200 rounded-xl px-2 text-center font-mono focus:outline-none focus:border-indigo-500"
-                required
-              />
-              <button type="submit" disabled={salvando} className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 shadow-md disabled:opacity-50 flex items-center justify-center min-w-[50px]">
-                {salvando ? <Loader2 className="w-6 h-6 animate-spin" /> : <PlusCircle className="w-6 h-6" />}
-              </button>
-            </div>
-            <div className="flex justify-between items-center px-1">
-              <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-                <Cloud className="w-3 h-3 text-emerald-500" />
-                Adicionando em:
-              </span>
-              <input
-                type="date"
-                value={dataForm}
-                onChange={(e) => setDataForm(e.target.value)}
-                className="text-[10px] bg-transparent text-slate-400 border-none p-0 focus:ring-0 w-24 text-right"
-              />
-            </div>
+             </div>
+             <div className="flex justify-between items-center px-1">
+                <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                  <Cloud className="w-3 h-3 text-emerald-500" />
+                  Adicionando em:
+                </span>
+                <input 
+                  type="date" 
+                  value={dataForm} 
+                  onChange={(e) => setDataForm(e.target.value)}
+                  className="text-[10px] bg-transparent text-slate-400 border-none p-0 focus:ring-0 w-24 text-right"
+                />
+             </div>
           </form>
         </div>
       </div>
