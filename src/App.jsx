@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   PlusCircle, Trash2, CheckCircle, Wallet,
-  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert
+  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -15,19 +15,21 @@ import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query
 } from 'firebase/firestore';
 
-
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// --- INSTRUÇÕES PARA O SEU VSCODE (PASSO 1) ---
+// No seu projeto local, você DEVE remover as duas barras (//) do início das linhas abaixo:
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
 
 // --- LISTA VIP (SEGURANÇA) ---
-// COLOQUE AQUI OS E-MAILS QUE PODEM ACESSAR O APP
 const EMAILS_PERMITIDOS = [
-  "guimedeirosesilva@gmail.com",
-  "elaineeemedeiros@gmail.com",
-  "homeroohs@gmail.com",
-  "fernandomedeiros90@gmail.com"
+  "seu.email@gmail.com",       // Substitua pelo seu
+  "email.da.mae@gmail.com"     // Substitua pelo da sua mãe
 ];
 
+// --- Configuração do Firebase ---
+// --- INSTRUÇÕES PARA O SEU VSCODE (PASSO 2) ---
+// No seu projeto local, substitua o bloco 'firebaseConfig' abaixo por este código:
+/*
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_API_KEY,
   authDomain: import.meta.env.VITE_AUTH_DOMAIN,
@@ -36,7 +38,12 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_APP_ID
 };
+*/
 
+// (Este bloco abaixo é apenas para o PREVIEW funcionar aqui no chat, não use no VSCode)
+const firebaseConfig = typeof __firebase_config !== 'undefined'
+  ? JSON.parse(__firebase_config)
+  : { apiKey: "demo-mode" };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -153,10 +160,13 @@ export default function CadernoDigital() {
   const [filtro, setFiltro] = useState('todos');
   const [salvando, setSalvando] = useState(false);
 
+  // ESTADO PARA EDIÇÃO (NOVO)
+  const [itemEmEdicao, setItemEmEdicao] = useState(null);
+
   // Controle de carregamento de PDF
   const [pdfLibsLoaded, setPdfLibsLoaded] = useState(false);
 
-  // Carrega PDF via CDN apenas para o preview (ignore isso no seu código local se usar npm)
+  // Carrega PDF via CDN apenas para o preview
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.jspdf) {
       const loadScript = (src) => new Promise((resolve) => {
@@ -231,7 +241,6 @@ export default function CadernoDigital() {
     }
   };
 
-  // --- Saudação e Nome do Usuário ---
   const getPrimeiroNome = () => {
     if (!user || !user.displayName) return 'Visitante';
     return user.displayName.split(' ')[0];
@@ -258,7 +267,9 @@ export default function CadernoDigital() {
     try {
       await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'transacoes'), {
         tipo, descricao, valor: parseFloat(valor), data: dataForm,
-        pago: tipo === 'entrada' ? true : false, criadoEm: new Date().toISOString()
+        pago: tipo === 'entrada' ? true : false,
+        observacoes: "", // Campo novo inicia vazio
+        criadoEm: new Date().toISOString()
       });
       setDescricao(''); setValor('');
     } catch (err) { alert("Erro ao salvar."); }
@@ -275,6 +286,26 @@ export default function CadernoDigital() {
     if (!user) return;
     if (window.confirm('Apagar esta anotação permanentemente?')) {
       await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'transacoes', id));
+    }
+  };
+
+  // --- NOVA FUNÇÃO: SALVAR EDIÇÃO ---
+  const salvarEdicao = async (e) => {
+    e.preventDefault();
+    if (!user || !itemEmEdicao) return;
+
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'transacoes', itemEmEdicao.id);
+      await updateDoc(docRef, {
+        descricao: itemEmEdicao.descricao,
+        valor: parseFloat(itemEmEdicao.valor),
+        data: itemEmEdicao.data,
+        observacoes: itemEmEdicao.observacoes || ""
+      });
+      setItemEmEdicao(null); // Fecha o modal
+    } catch (err) {
+      console.error("Erro ao editar:", err);
+      alert("Erro ao salvar alterações.");
     }
   };
 
@@ -323,7 +354,7 @@ export default function CadernoDigital() {
       doc.text(`Relatório Financeiro - ${nomeDoMes}`, 14, 22);
       doc.setFontSize(10);
       doc.setTextColor(150);
-      doc.text(`Gerado por: ${getPrimeiroNome()}`, 14, 27); // Adiciona nome no PDF
+      doc.text(`Gerado por: ${getPrimeiroNome()}`, 14, 27);
 
       doc.setFontSize(12);
       doc.setTextColor(100);
@@ -331,21 +362,23 @@ export default function CadernoDigital() {
       doc.text(`Saídas: ${formatarMoeda(totalSaidasGeral)}`, 14, 43);
       doc.text(`Saldo Final: ${formatarMoeda(saldoDoMes)}`, 14, 49);
 
+      // Adicionamos a coluna de Observações no PDF também
       const tabelaDados = listaFinal.map(item => [
         formatarDataBr(item.data),
         item.descricao,
         item.tipo === 'entrada' ? 'Entrada' : 'Saída',
         item.tipo === 'saida' ? (item.pago ? 'Pago' : 'Pendente') : '-',
-        formatarMoeda(item.valor)
+        formatarMoeda(item.valor),
+        item.observacoes || '-' // Mostra observações se houver
       ]);
 
       doc.autoTable({
         startY: 55,
-        head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor']],
+        head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor', 'Obs']], // Nova coluna no cabeçalho
         body: tabelaDados,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
-        styles: { fontSize: 10 },
+        styles: { fontSize: 8 }, // Fonte menor para caber
         columnStyles: { 4: { fontStyle: 'bold', halign: 'right' } }
       });
 
@@ -369,7 +402,6 @@ export default function CadernoDigital() {
       <header className="bg-indigo-600 text-white pb-8 pt-6 shadow-lg rounded-b-[2.5rem] mb-6 relative z-10">
         <div className="max-w-md mx-auto px-4">
 
-          {/* Topo com Saudação e Logout */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <span className="text-xs font-medium text-indigo-200 block mb-0.5 animate-in fade-in slide-in-from-bottom-2 duration-700">
@@ -410,7 +442,7 @@ export default function CadernoDigital() {
           </div>
 
           <div className="flex flex-col gap-6">
-            {/* ... restante dos cards ... */}
+            {/* Cards de Resumo (Igual) */}
             <div className="bg-white text-slate-800 rounded-3xl p-5 shadow-xl">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
@@ -520,19 +552,37 @@ export default function CadernoDigital() {
                     {item.tipo === 'saida' && (item.pago ? 'Pago' : 'Pendente')}
                     {item.tipo === 'entrada' && 'Recebido'}
                   </p>
+                  {/* Se tiver observação, mostra um ícone pequeno */}
+                  {item.observacoes && (
+                    <p className="text-[10px] text-slate-400 mt-1 italic truncate max-w-[150px]">
+                      obs: {item.observacoes}
+                    </p>
+                  )}
                 </div>
 
                 <div className="text-right">
                   <div className={`font-bold font-mono text-sm ${item.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {item.tipo === 'entrada' ? '+' : '-'}{formatarMoeda(item.valor)}
                   </div>
-                  <button
-                    onClick={() => removerTransacao(item.id)}
-                    className="mt-1 text-slate-200 hover:text-rose-500 transition-colors p-1 opacity-0 group-hover:opacity-100"
-                    title="Excluir"
-                  >
-                    <Trash2 className="w-4 h-4 ml-auto" />
-                  </button>
+
+                  <div className="flex justify-end gap-1 mt-1">
+                    {/* Botão de EDITAR (Novo) */}
+                    <button
+                      onClick={() => setItemEmEdicao(item)}
+                      className="text-slate-300 hover:text-indigo-500 transition-colors p-1"
+                      title="Editar e ver detalhes"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    {/* Botão de Apagar */}
+                    <button
+                      onClick={() => removerTransacao(item.id)}
+                      className="text-slate-300 hover:text-rose-500 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                      title="Excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
@@ -540,6 +590,83 @@ export default function CadernoDigital() {
         </div>
       </main>
 
+      {/* --- MODAL DE EDIÇÃO E OBSERVAÇÕES (NOVO) --- */}
+      {itemEmEdicao && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative">
+            <button
+              onClick={() => setItemEmEdicao(null)}
+              className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+            >
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <Edit3 className="w-5 h-5 text-indigo-500" />
+              Editar Detalhes
+            </h3>
+
+            <form onSubmit={salvarEdicao} className="flex flex-col gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-400 ml-1">Descrição</label>
+                <input
+                  type="text"
+                  value={itemEmEdicao.descricao}
+                  onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, descricao: e.target.value })}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 ml-1">Valor (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={itemEmEdicao.valor}
+                    onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, valor: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 ml-1">Data</label>
+                  <input
+                    type="date"
+                    value={itemEmEdicao.data}
+                    onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, data: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* CAMPO DE OBSERVAÇÕES (NOVO) */}
+              <div>
+                <label className="text-xs font-bold text-slate-400 ml-1">Observações (Banco, Juros, etc)</label>
+                <textarea
+                  rows="3"
+                  value={itemEmEdicao.observacoes || ""}
+                  onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, observacoes: e.target.value })}
+                  placeholder="Ex: Pago no banco X com juros..."
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
+                ></textarea>
+              </div>
+
+              <button
+                type="submit"
+                className="bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 mt-2 shadow-lg shadow-indigo-200"
+              >
+                <Save className="w-5 h-5" />
+                Salvar Alterações
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Formulário Fixo (Rodapé) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 pb-8 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30">
         <div className="max-w-md mx-auto">
           <form onSubmit={adicionarTransacao} className="flex flex-col gap-3">
