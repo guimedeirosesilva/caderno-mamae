@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import {
-  PlusCircle, Trash2, CheckCircle, Wallet,
-  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save, PiggyBank, FileSpreadsheet
+import { 
+  PlusCircle, Trash2, CheckCircle, Wallet, 
+  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save, PiggyBank, FileSpreadsheet, Pencil
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut
+import { 
+  getAuth, 
+  onAuthStateChanged, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut 
 } from 'firebase/auth';
-import {
-  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, setDoc
+import { 
+  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, setDoc, where, getDocs, writeBatch 
 } from 'firebase/firestore';
 
 // --- INSTRUÇÕES PARA O SEU VSCODE (PASSO 1) ---
 // No seu projeto local, você DEVE remover as duas barras (//) do início das linhas abaixo:
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
 
 // --- LISTA VIP (SEGURANÇA) ---
 const EMAILS_PERMITIDOS = [
@@ -42,12 +42,12 @@ try {
       appId: import.meta.env.VITE_APP_ID
     };
   }
-} catch (e) { }
+} catch (e) {}
 
 if (!firebaseConfig) {
-  firebaseConfig = typeof __firebase_config !== 'undefined'
-    ? JSON.parse(__firebase_config)
-    : { apiKey: "demo-mode", projectId: "demo-project" };
+  firebaseConfig = typeof __firebase_config !== 'undefined' 
+    ? JSON.parse(__firebase_config) 
+    : { apiKey: "demo-mode", projectId: "demo-project" }; 
 }
 
 const app = initializeApp(firebaseConfig);
@@ -72,7 +72,7 @@ const GraficoMensal = ({ entradas, saidas, investido }) => {
 
   const pctEntrada = entradas / total;
   const pctInvestido = investido / total;
-
+  
   const offsetAmarelo = circunferencia - ((pctEntrada + pctInvestido) * circunferencia);
   const offsetVerde = circunferencia - (pctEntrada * circunferencia);
 
@@ -84,7 +84,7 @@ const GraficoMensal = ({ entradas, saidas, investido }) => {
           <circle
             cx="50" cy="50" r={raio}
             fill="transparent"
-            stroke="#D97706"
+            stroke="#D97706" 
             strokeWidth="12"
             strokeDasharray={circunferencia}
             strokeDashoffset={offsetAmarelo}
@@ -94,7 +94,7 @@ const GraficoMensal = ({ entradas, saidas, investido }) => {
           <circle
             cx="50" cy="50" r={raio}
             fill="transparent"
-            stroke="#10B981"
+            stroke="#10B981" 
             strokeWidth="12"
             strokeDasharray={circunferencia}
             strokeDashoffset={offsetVerde}
@@ -103,8 +103,8 @@ const GraficoMensal = ({ entradas, saidas, investido }) => {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700">
-          <span className="text-xs font-bold uppercase text-slate-400">Movimento</span>
-          <span className="text-sm font-bold">{Math.round(pctEntrada * 100)}% Entrou</span>
+           <span className="text-xs font-bold uppercase text-slate-400">Movimento</span>
+           <span className="text-sm font-bold">{Math.round(pctEntrada * 100)}% Entrou</span>
         </div>
       </div>
       <div className="flex justify-center gap-2 mt-2 text-[10px] font-bold flex-wrap px-2">
@@ -143,7 +143,7 @@ const LoginScreen = ({ onLoginGoogle, loading, erroPermissao }) => (
     )}
 
     <div className="w-full max-w-sm space-y-4">
-      <button
+      <button 
         onClick={onLoginGoogle}
         disabled={loading}
         className="w-full bg-white text-indigo-900 font-bold py-4 rounded-2xl shadow-lg hover:bg-indigo-50 transition-all flex items-center justify-center gap-3"
@@ -155,7 +155,7 @@ const LoginScreen = ({ onLoginGoogle, loading, erroPermissao }) => (
           </>
         )}
       </button>
-
+      
       <p className="text-xs text-indigo-300 mt-6 flex items-center justify-center gap-1">
         <Lock className="w-3 h-3" /> Acesso restrito à família.
       </p>
@@ -171,35 +171,34 @@ export default function CadernoDigital() {
   const [loading, setLoading] = useState(true);
   const [loginLoading, setLoginLoading] = useState(false);
   const [erroPermissao, setErroPermissao] = useState(false);
-
+  
   // Estados de Visualização
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
-  const [tipo, setTipo] = useState('saida');
+  const [tipo, setTipo] = useState('saida'); 
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [dataForm, setDataForm] = useState(new Date().toISOString().substr(0, 10));
-  const [filtro, setFiltro] = useState('todos');
+  const [filtro, setFiltro] = useState('todos'); 
   const [salvando, setSalvando] = useState(false);
   const [itemEmEdicao, setItemEmEdicao] = useState(null);
   const [pdfLibsLoaded, setPdfLibsLoaded] = useState(false);
   const [modalPDF, setModalPDF] = useState(false);
 
-  // Carrega PDF via CDN (para funcionar no Preview do chat)
+  // Carrega PDF via CDN
   useEffect(() => {
-    // Apenas carrega CDN se não encontrar o jspdf importado (fallback)
     if (typeof window !== 'undefined' && !window.jspdf) {
-      const loadScript = (src) => new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = resolve;
-        document.body.appendChild(script);
-      });
-      Promise.all([
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js')
-      ]).then(() => setPdfLibsLoaded(true));
+        const loadScript = (src) => new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = resolve;
+          document.body.appendChild(script);
+        });
+        Promise.all([
+          loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+          loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js')
+        ]).then(() => setPdfLibsLoaded(true));
     } else {
-      setPdfLibsLoaded(true);
+        setPdfLibsLoaded(true);
     }
   }, []);
 
@@ -288,7 +287,7 @@ export default function CadernoDigital() {
     const nome = window.prompt("Qual o nome da nova caixinha? (Ex: Reforma, Viagem)");
     if (nome && nome.trim()) {
       const novaLista = [...caixinhas, nome.trim()];
-      setCaixinhas(novaLista);
+      setCaixinhas(novaLista); 
       setDescricao(nome.trim());
       try {
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'config', 'caixinhas'), {
@@ -296,7 +295,120 @@ export default function CadernoDigital() {
         });
       } catch (e) { console.error("Erro salvar caixinha", e); }
     } else {
-      setDescricao("");
+      setDescricao(""); 
+    }
+  };
+
+  // --- GERENCIAR CAIXINHAS (RENOMEAR) ---
+  const editarNomeCaixinha = async (nomeAntigo) => {
+    const novoNome = window.prompt("Novo nome para a caixinha:", nomeAntigo);
+    if (!novoNome || novoNome.trim() === "" || novoNome === nomeAntigo) return;
+
+    const nomeFinal = novoNome.trim();
+    const novaLista = caixinhas.map(c => c === nomeAntigo ? nomeFinal : c);
+    setCaixinhas(novaLista);
+
+    const atualizarHistorico = window.confirm(`Deseja atualizar todas as transações antigas de "${nomeAntigo}" para "${nomeFinal}"?`);
+
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'config', 'caixinhas'), {
+        lista: novaLista
+      });
+
+      if (atualizarHistorico) {
+        const q = query(
+          collection(db, 'artifacts', appId, 'users', user.uid, 'transacoes'),
+          where('tipo', '==', 'investimento'),
+          where('descricao', '==', nomeAntigo)
+        );
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const batch = writeBatch(db);
+          querySnapshot.forEach((documento) => {
+            batch.update(documento.ref, { descricao: nomeFinal });
+          });
+          await batch.commit();
+          alert("Caixinha e histórico atualizados com sucesso!");
+        } else {
+          alert("Caixinha renomeada (sem histórico encontrado).");
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao editar caixinha", e);
+      alert("Erro ao salvar alterações.");
+    }
+  };
+
+  // --- GERENCIAR CAIXINHAS (DELETAR COM MIGRAÇÃO) ---
+  const deletarCaixinha = async (nomeParaDeletar) => {
+    // 1. Verifica se tem dinheiro na caixinha antes de deletar
+    const q = query(
+      collection(db, 'artifacts', appId, 'users', user.uid, 'transacoes'),
+      where('tipo', '==', 'investimento'),
+      where('descricao', '==', nomeParaDeletar)
+    );
+    
+    let destino = null;
+    let deveMover = false;
+
+    try {
+      const snapshot = await getDocs(q);
+      const temTransacoes = !snapshot.empty;
+
+      if (temTransacoes) {
+        // PERGUNTA ONDE O DINHEIRO DEVE IR
+        const resposta = window.prompt(
+          `Atenção: Existem ${snapshot.size} registros guardados em "${nomeParaDeletar}".\n\nPara não perder esse histórico, para qual caixinha você quer mover esse saldo? (Digite o nome exato, ex: Poupança)`,
+          "Poupança"
+        );
+        
+        if (resposta === null) return; // Cancelou
+        
+        destino = resposta.trim();
+        if (!destino || destino === nomeParaDeletar) {
+          alert("Destino inválido. A exclusão foi cancelada para proteger seus dados.");
+          return;
+        }
+        deveMover = true;
+      } else {
+        if (!window.confirm(`Tem certeza que deseja excluir a caixinha "${nomeParaDeletar}"?`)) return;
+      }
+
+      // 2. Prossegue com a exclusão
+      const novaLista = caixinhas.filter(c => c !== nomeParaDeletar);
+      
+      // Se o destino da migração não existe na lista, vamos adicionar para não dar erro
+      let listaFinal = novaLista;
+      if (deveMover && !novaLista.includes(destino)) {
+         const criarDestino = window.confirm(`A caixinha de destino "${destino}" não existe. Deseja criá-la agora?`);
+         if(criarDestino) listaFinal = [...novaLista, destino];
+         else {
+           alert("Operação cancelada. Destino inexistente.");
+           return;
+         }
+      }
+
+      setCaixinhas(listaFinal);
+
+      // Salva nova lista
+      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'config', 'caixinhas'), {
+        lista: listaFinal
+      });
+
+      // Migra histórico
+      if (deveMover) {
+        const batch = writeBatch(db);
+        snapshot.forEach((doc) => {
+          batch.update(doc.ref, { descricao: destino });
+        });
+        await batch.commit();
+        alert(`Pronto! Saldo movido para "${destino}" e caixinha "${nomeParaDeletar}" excluída.`);
+      }
+
+    } catch (e) {
+      console.error("Erro ao deletar caixinha", e);
+      alert("Erro ao processar exclusão.");
     }
   };
 
@@ -339,7 +451,7 @@ export default function CadernoDigital() {
         data: itemEmEdicao.data,
         observacoes: itemEmEdicao.observacoes || ""
       });
-      setItemEmEdicao(null);
+      setItemEmEdicao(null); 
     } catch (err) {
       alert("Erro ao salvar alterações.");
     }
@@ -416,7 +528,6 @@ export default function CadernoDigital() {
   // --- GERADORES DE PDF ---
   const gerarPDF = (tipoRelatorio) => {
     try {
-      // 1. Tenta pegar a biblioteca jsPDF e autoTable
       let doc;
       let autoTableFunc;
 
@@ -426,14 +537,13 @@ export default function CadernoDigital() {
           doc = new jsPDF();
           autoTableFunc = typeof autoTable !== 'undefined' ? autoTable : null;
         }
-      } catch (e) { }
+      } catch(e) {}
 
       // Opção B: CDN (Fallback para Preview)
       if (!doc && window.jspdf) {
         const { jsPDF } = window.jspdf;
         doc = new jsPDF();
-        // Na CDN, o autoTable geralmente já se anexa ao doc
-        autoTableFunc = null;
+        autoTableFunc = null; 
       }
 
       // Verificação Final
@@ -442,7 +552,6 @@ export default function CadernoDigital() {
         return;
       }
 
-      // Helper para desenhar tabela em qualquer ambiente
       const desenharTabela = (opcoes) => {
         if (autoTableFunc) {
           autoTableFunc(doc, opcoes);
@@ -453,12 +562,12 @@ export default function CadernoDigital() {
           throw new Error("Plugin missing");
         }
       };
-
+      
       if (tipoRelatorio === 'extrato') {
         // --- MODO EXTRATO ---
         doc.setFontSize(18); doc.setTextColor(20, 20, 20);
         doc.text(`Extrato Bancário - ${nomeDoMes}`, 14, 22);
-
+        
         doc.setFontSize(10); doc.setTextColor(100);
         const saldoAnterior = calcularSaldoAnterior();
         doc.text(`Saldo Anterior: ${formatarMoeda(saldoAnterior)}`, 14, 32);
@@ -466,29 +575,29 @@ export default function CadernoDigital() {
 
         let saldoCorrente = saldoAnterior;
         const transacoesOrdenadas = [...transacoesDoMes].sort((a, b) => new Date(a.data) - new Date(b.data));
-
+        
         const tabelaDados = transacoesOrdenadas.map(item => {
           let valorItem = 0;
           if (item.tipo === 'entrada') valorItem = item.valor;
           else if (item.pago) valorItem = -item.valor; // Saída paga ou investimento
-
+          
           saldoCorrente += valorItem;
-
+          
           return [
             formatarDataBr(item.data),
             item.descricao + (item.observacoes ? ` (${item.observacoes})` : ''),
             item.tipo === 'entrada' ? 'Entrada' : (item.tipo === 'investimento' ? 'Aplic.' : 'Saída'),
-            valorItem !== 0 ? formatarMoeda(item.valor) : '-',
+            valorItem !== 0 ? formatarMoeda(item.valor) : '-', 
             formatarMoeda(saldoCorrente)
           ];
         });
 
         desenharTabela({
           startY: 45,
-          head: [['Data', 'Descrição', 'Tipo', 'Valor', 'Saldo Acum.']],
+          head: [['Data', 'Descrição', 'Tipo', 'Valor', 'Saldo Acum.']], 
           body: tabelaDados, theme: 'striped',
           headStyles: { fillColor: [50, 50, 50] },
-          styles: { fontSize: 9 },
+          styles: { fontSize: 9 }, 
           columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } }
         });
 
@@ -500,25 +609,25 @@ export default function CadernoDigital() {
         doc.text(`Relatório Gerencial - ${nomeDoMes}`, 14, 22);
         doc.setFontSize(10); doc.setTextColor(150);
         doc.text(`Gerado por: ${getPrimeiroNome()}`, 14, 27);
-
+        
         doc.setFontSize(12); doc.setTextColor(100);
         doc.text(`Entradas: ${formatarMoeda(totalEntradas)}`, 14, 37);
         doc.text(`Contas Pagas: ${formatarMoeda(totalSaidasPagas)}`, 14, 43);
         doc.text(`Investido: ${formatarMoeda(totalInvestidoMes)}`, 14, 49);
         doc.text(`Saldo Livre: ${formatarMoeda(saldoDoMes)}`, 14, 55);
-        doc.setTextColor(217, 119, 6);
+        doc.setTextColor(217, 119, 6); 
         doc.text(`Total em Caixinhas: ${formatarMoeda(totalGuardadoGeral)}`, 14, 65);
 
         const tabelaDados = listaFinal.map(item => [
           formatarDataBr(item.data), item.descricao,
           item.tipo === 'entrada' ? 'Entrada' : (item.tipo === 'investimento' ? 'Guardado' : 'Saída'),
           item.tipo === 'saida' ? (item.pago ? 'Pago' : 'Pendente') : (item.tipo === 'investimento' ? 'OK' : '-'),
-          formatarMoeda(item.valor), item.observacoes || '-'
+          formatarMoeda(item.valor), item.observacoes || '-' 
         ]);
 
         desenharTabela({
           startY: 75,
-          head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor', 'Obs']],
+          head: [['Data', 'Descrição', 'Tipo', 'Status', 'Valor', 'Obs']], 
           body: tabelaDados, theme: 'grid', headStyles: { fillColor: [79, 70, 229] },
           styles: { fontSize: 8 }, columnStyles: { 4: { fontStyle: 'bold', halign: 'right' } }
         });
@@ -526,19 +635,19 @@ export default function CadernoDigital() {
 
       doc.save(`${tipoRelatorio}_${nomeDoMes.replace(' ', '_')}.pdf`);
       setModalPDF(false);
-    } catch (err) {
+    } catch (err) { 
       console.error(err);
-      alert("Erro ao gerar PDF. Verifique o console ou se as bibliotecas estão descomentadas.");
+      alert("Erro ao gerar PDF. Verifique o console ou se as bibliotecas estão descomentadas."); 
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-indigo-600 flex items-center justify-center"><Loader2 className="text-white animate-spin w-8 h-8" /></div>;
+  if (loading) return <div className="min-h-screen bg-indigo-600 flex items-center justify-center"><Loader2 className="text-white animate-spin w-8 h-8"/></div>;
 
   if (!user) return <LoginScreen onLoginGoogle={handleGoogleLogin} loading={loginLoading} erroPermissao={erroPermissao} />;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
-
+      
       {/* Cabeçalho */}
       <header className="bg-indigo-600 text-white pb-8 pt-6 shadow-lg rounded-b-[2.5rem] mb-6 relative z-10">
         <div className="max-w-md mx-auto px-4">
@@ -560,7 +669,7 @@ export default function CadernoDigital() {
 
           {/* Navegação Mês */}
           <div className="flex items-center justify-center mb-6">
-            <div className="flex items-center bg-indigo-700 rounded-full px-1 p-1 shadow-inner border border-indigo-500/30">
+             <div className="flex items-center bg-indigo-700 rounded-full px-1 p-1 shadow-inner border border-indigo-500/30">
               <button onClick={() => navegarMes(-1)} className="p-1 hover:bg-indigo-500 rounded-full transition-colors"><ChevronLeft className="w-5 h-5 text-indigo-100" /></button>
               <span className="mx-3 font-bold text-sm capitalize min-w-[100px] text-center">{nomeDoMes}</span>
               <button onClick={() => navegarMes(1)} className="p-1 hover:bg-indigo-500 rounded-full transition-colors"><ChevronRight className="w-5 h-5 text-indigo-100" /></button>
@@ -588,29 +697,29 @@ export default function CadernoDigital() {
                 <span className="text-base font-bold text-white leading-tight">{formatarMoeda(totalEntradas)}</span>
               </div>
               <div className="bg-amber-500/20 bg-opacity-25 backdrop-blur-md border border-white/20 rounded-2xl p-3 flex flex-col justify-center relative">
-                <div className="flex items-center justify-between mb-1"><span className="text-[10px] font-bold text-amber-100 uppercase">Guardou</span><PiggyBank className="w-3 h-3 text-amber-200" /></div>
-                <span className="text-base font-bold text-white leading-tight">{formatarMoeda(totalInvestidoMes)}</span>
+                 <div className="flex items-center justify-between mb-1"><span className="text-[10px] font-bold text-amber-100 uppercase">Guardou</span><PiggyBank className="w-3 h-3 text-amber-200" /></div>
+                 <span className="text-base font-bold text-white leading-tight">{formatarMoeda(totalInvestidoMes)}</span>
               </div>
               <div className="bg-blue-500/20 bg-opacity-25 backdrop-blur-md border border-white/20 rounded-2xl p-3 flex flex-col justify-center relative">
-                <div className="flex items-center justify-between mb-1"><span className="text-[10px] font-bold text-blue-100 uppercase">Pago</span><CheckCircle className="w-3 h-3 text-blue-200" /></div>
-                <span className="text-base font-bold text-white leading-tight">{formatarMoeda(totalSaidasPagas)}</span>
+                 <div className="flex items-center justify-between mb-1"><span className="text-[10px] font-bold text-blue-100 uppercase">Pago</span><CheckCircle className="w-3 h-3 text-blue-200" /></div>
+                 <span className="text-base font-bold text-white leading-tight">{formatarMoeda(totalSaidasPagas)}</span>
               </div>
               <div className="bg-rose-500/20 bg-opacity-25 backdrop-blur-md border border-white/20 rounded-2xl p-3 flex flex-col justify-center relative">
-                <div className="flex items-center justify-between mb-1"><span className="text-[10px] font-bold text-rose-100 uppercase">Falta</span><TrendingDown className="w-3 h-3 text-rose-200" /></div>
-                <span className="text-base font-bold text-white leading-tight">{formatarMoeda(totalSaidasPendentes)}</span>
+                 <div className="flex items-center justify-between mb-1"><span className="text-[10px] font-bold text-rose-100 uppercase">Falta</span><TrendingDown className="w-3 h-3 text-rose-200" /></div>
+                 <span className="text-base font-bold text-white leading-tight">{formatarMoeda(totalSaidasPendentes)}</span>
               </div>
             </div>
 
             <div className="bg-indigo-800/50 backdrop-blur-md border border-indigo-400/30 rounded-2xl p-3 flex flex-col justify-center">
-              <span className="text-[10px] text-indigo-200 font-bold uppercase block mb-1">Caixa Geral (Total)</span>
-              <span className="text-base font-bold text-white">{formatarMoeda(saldoTotalAcumulado)}</span>
+                <span className="text-[10px] text-indigo-200 font-bold uppercase block mb-1">Caixa Geral (Total)</span>
+                <span className="text-base font-bold text-white">{formatarMoeda(saldoTotalAcumulado)}</span>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-md mx-auto px-4 pb-28 -mt-4 relative z-20">
-
+        
         <div className="flex justify-center mb-6">
           <div className="bg-white p-1 rounded-full shadow-sm border border-slate-100 inline-flex overflow-x-auto max-w-full">
             {['todos', 'entradas', 'saidas', 'investimentos'].map((f) => (
@@ -635,8 +744,27 @@ export default function CadernoDigital() {
             <div className="grid grid-cols-2 gap-3">
               {caixinhas.map(caixa => (
                 <div key={caixa} className="bg-white border border-amber-100 p-3 rounded-2xl shadow-sm relative overflow-hidden group hover:border-amber-300 transition-all">
-                  <div className="absolute top-0 right-0 p-2 opacity-10"><PiggyBank className="w-12 h-12 text-amber-500" /></div>
-                  <span className="text-[10px] uppercase font-bold text-amber-600 block mb-1 tracking-wider">{caixa}</span>
+                  
+                  {/* BOTÕES DE EDITAR/EXCLUIR CAIXINHA */}
+                  <div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); editarNomeCaixinha(caixa); }}
+                      className="p-1 bg-indigo-50 text-indigo-500 rounded-full hover:bg-indigo-100"
+                      title="Renomear caixinha"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); deletarCaixinha(caixa); }}
+                      className="p-1 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-100"
+                      title="Remover da lista"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none"><PiggyBank className="w-12 h-12 text-amber-500" /></div>
+                  <span className="text-[10px] uppercase font-bold text-amber-600 block mb-1 tracking-wider pr-6 truncate">{caixa}</span>
                   <div className="text-lg font-bold text-slate-700">{formatarMoeda(resumoCaixinhasGeral[caixa] || 0)}</div>
                   {resumoCaixinhasMes[caixa] > 0 && <div className="text-[10px] text-emerald-500 font-medium mt-1">+{formatarMoeda(resumoCaixinhasMes[caixa])} este mês</div>}
                 </div>
@@ -654,24 +782,24 @@ export default function CadernoDigital() {
             </div>
           ) : (
             listaFinal.map((item) => (
-              <div
-                key={item.id}
+              <div 
+                key={item.id} 
                 className={`relative overflow-hidden bg-white p-4 rounded-2xl shadow-sm border transition-all flex items-center gap-3 group
                   ${item.tipo === 'entrada' ? 'border-emerald-100' : (item.tipo === 'investimento' ? 'border-amber-100 bg-amber-50/20' : (item.pago ? 'border-blue-100 bg-blue-50/30' : 'border-rose-100'))}
                 `}
               >
                 <div className="flex flex-col items-center justify-center pr-3 border-r border-slate-100 min-w-[3rem]">
-                  <span className="text-lg font-bold text-slate-700">{formatarDataDia(item.data)}</span>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">Dia</span>
+                   <span className="text-lg font-bold text-slate-700">{formatarDataDia(item.data)}</span>
+                   <span className="text-[10px] text-slate-400 uppercase font-bold">Dia</span>
                 </div>
                 <div>
-                  {item.tipo === 'entrada' && <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center"><TrendingUp className="w-5 h-5" /></div>}
-                  {item.tipo === 'investimento' && <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><PiggyBank className="w-5 h-5" /></div>}
-                  {item.tipo === 'saida' && (
-                    <button onClick={() => alternarStatus(item)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${item.pago ? 'bg-blue-100 text-blue-500 hover:bg-blue-200' : 'bg-rose-100 text-rose-500 hover:bg-rose-200 shadow-sm'}`}>
-                      {item.pago ? <CheckCircle className="w-5 h-5" /> : <div className="w-4 h-4 border-2 border-current rounded-md"></div>}
-                    </button>
-                  )}
+                   {item.tipo === 'entrada' && <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center"><TrendingUp className="w-5 h-5" /></div>}
+                   {item.tipo === 'investimento' && <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><PiggyBank className="w-5 h-5" /></div>}
+                   {item.tipo === 'saida' && (
+                     <button onClick={() => alternarStatus(item)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${item.pago ? 'bg-blue-100 text-blue-500 hover:bg-blue-200' : 'bg-rose-100 text-rose-500 hover:bg-rose-200 shadow-sm'}`}>
+                       {item.pago ? <CheckCircle className="w-5 h-5" /> : <div className="w-4 h-4 border-2 border-current rounded-md"></div>}
+                     </button>
+                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`font-bold truncate text-slate-800 ${item.pago && item.tipo === 'saida' ? 'line-through text-blue-900/40' : ''}`}>{item.descricao}</p>
@@ -704,9 +832,9 @@ export default function CadernoDigital() {
             <button onClick={() => setModalPDF(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"><X className="w-5 h-5 text-slate-500" /></button>
             <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><FileText className="w-5 h-5 text-indigo-500" /> Relatórios</h3>
             <p className="text-sm text-slate-500 mb-6">Qual tipo de documento você precisa?</p>
-
+            
             <div className="flex flex-col gap-3">
-              <button
+              <button 
                 onClick={() => gerarPDF('resumo')}
                 className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl hover:bg-indigo-50 hover:border-indigo-200 transition-all text-left group"
               >
@@ -717,7 +845,7 @@ export default function CadernoDigital() {
                 </div>
               </button>
 
-              <button
+              <button 
                 onClick={() => gerarPDF('extrato')}
                 className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl hover:bg-emerald-50 hover:border-emerald-200 transition-all text-left group"
               >
@@ -741,21 +869,21 @@ export default function CadernoDigital() {
             <form onSubmit={salvarEdicao} className="flex flex-col gap-4">
               <div>
                 <label className="text-xs font-bold text-slate-400 ml-1">Descrição</label>
-                <input type="text" value={itemEmEdicao.descricao} onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, descricao: e.target.value })} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                <input type="text" value={itemEmEdicao.descricao} onChange={(e) => setItemEmEdicao({...itemEmEdicao, descricao: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-400 ml-1">Valor</label>
-                  <input type="number" step="0.01" value={itemEmEdicao.valor} onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, valor: e.target.value })} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                  <input type="number" step="0.01" value={itemEmEdicao.valor} onChange={(e) => setItemEmEdicao({...itemEmEdicao, valor: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-400 ml-1">Data</label>
-                  <input type="date" value={itemEmEdicao.data} onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, data: e.target.value })} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                  <input type="date" value={itemEmEdicao.data} onChange={(e) => setItemEmEdicao({...itemEmEdicao, data: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
                 </div>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-400 ml-1">Observações</label>
-                <textarea rows="3" value={itemEmEdicao.observacoes || ""} onChange={(e) => setItemEmEdicao({ ...itemEmEdicao, observacoes: e.target.value })} placeholder="Ex: Pago no banco X..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"></textarea>
+                <textarea rows="3" value={itemEmEdicao.observacoes || ""} onChange={(e) => setItemEmEdicao({...itemEmEdicao, observacoes: e.target.value})} placeholder="Ex: Pago no banco X..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"></textarea>
               </div>
               <button type="submit" className="bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 mt-2 shadow-lg"><Save className="w-5 h-5" /> Salvar</button>
             </form>
@@ -767,45 +895,45 @@ export default function CadernoDigital() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 pb-8 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30">
         <div className="max-w-md mx-auto">
           <form onSubmit={adicionarTransacao} className="flex flex-col gap-3">
-            <div className="flex gap-2 justify-center">
-              <div className="flex bg-slate-100 rounded-xl p-1 shrink-0 gap-1">
-                <button type="button" onClick={() => setTipo('entrada')} className={`p-3 rounded-lg transition-all ${tipo === 'entrada' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400'}`}><TrendingUp className="w-5 h-5" /></button>
-                <button type="button" onClick={() => setTipo('saida')} className={`p-3 rounded-lg transition-all ${tipo === 'saida' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400'}`}><TrendingDown className="w-5 h-5" /></button>
-                <button type="button" onClick={() => setTipo('investimento')} className={`p-3 rounded-lg transition-all ${tipo === 'investimento' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400'}`}><PiggyBank className="w-5 h-5" /></button>
-              </div>
-
-              {tipo === 'investimento' ? (
-                <div className="flex-1 min-w-0 relative">
-                  <select
-                    value={descricao}
-                    onChange={(e) => {
-                      if (e.target.value === '__new__') {
-                        criarNovaCaixinha();
-                      } else {
-                        setDescricao(e.target.value);
-                      }
-                    }}
-                    className="w-full h-full bg-slate-50 border border-slate-200 rounded-xl px-4 focus:outline-none focus:border-indigo-500 appearance-none text-slate-700 font-medium"
-                    required
-                  >
-                    <option value="" disabled>Selecione a Caixinha</option>
-                    {caixinhas.map(c => <option key={c} value={c}>{c}</option>)}
-                    <option value="__new__" className="text-indigo-600 font-bold">+ Nova Caixinha...</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500"><ChevronRight className="w-4 h-4 rotate-90" /></div>
+             <div className="flex gap-2 justify-center">
+                <div className="flex bg-slate-100 rounded-xl p-1 shrink-0 gap-1">
+                  <button type="button" onClick={() => setTipo('entrada')} className={`p-3 rounded-lg transition-all ${tipo === 'entrada' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400'}`}><TrendingUp className="w-5 h-5" /></button>
+                  <button type="button" onClick={() => setTipo('saida')} className={`p-3 rounded-lg transition-all ${tipo === 'saida' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400'}`}><TrendingDown className="w-5 h-5" /></button>
+                  <button type="button" onClick={() => setTipo('investimento')} className={`p-3 rounded-lg transition-all ${tipo === 'investimento' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400'}`}><PiggyBank className="w-5 h-5" /></button>
                 </div>
-              ) : (
-                <input type="text" placeholder="Nome (Ex: Luz, Bolo)" value={descricao} onChange={(e) => setDescricao(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:outline-none focus:border-indigo-500 min-w-0" required />
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <input type="number" step="0.01" placeholder="R$ 0,00" value={valor} onChange={(e) => setValor(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 text-center font-mono focus:outline-none focus:border-indigo-500 text-lg font-bold" required />
-              <input type="date" value={dataForm} onChange={(e) => setDataForm(e.target.value)} className="w-28 bg-slate-50 border border-slate-200 rounded-xl px-2 text-center text-sm text-slate-600 focus:outline-none focus:border-indigo-500" />
-              <button type="submit" disabled={salvando} className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 shadow-md disabled:opacity-50 flex items-center justify-center w-14 shrink-0">
-                {salvando ? <Loader2 className="w-6 h-6 animate-spin" /> : <PlusCircle className="w-6 h-6" />}
-              </button>
-            </div>
+                
+                {tipo === 'investimento' ? (
+                  <div className="flex-1 min-w-0 relative">
+                    <select
+                      value={descricao}
+                      onChange={(e) => {
+                        if (e.target.value === '__new__') {
+                          criarNovaCaixinha();
+                        } else {
+                          setDescricao(e.target.value);
+                        }
+                      }}
+                      className="w-full h-full bg-slate-50 border border-slate-200 rounded-xl px-4 focus:outline-none focus:border-indigo-500 appearance-none text-slate-700 font-medium"
+                      required
+                    >
+                      <option value="" disabled>Selecione a Caixinha</option>
+                      {caixinhas.map(c => <option key={c} value={c}>{c}</option>)}
+                      <option value="__new__" className="text-indigo-600 font-bold">+ Nova Caixinha...</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500"><ChevronRight className="w-4 h-4 rotate-90" /></div>
+                  </div>
+                ) : (
+                  <input type="text" placeholder="Nome (Ex: Luz, Bolo)" value={descricao} onChange={(e) => setDescricao(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:outline-none focus:border-indigo-500 min-w-0" required />
+                )}
+             </div>
+             
+             <div className="flex gap-2">
+               <input type="number" step="0.01" placeholder="R$ 0,00" value={valor} onChange={(e) => setValor(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 text-center font-mono focus:outline-none focus:border-indigo-500 text-lg font-bold" required />
+                <input type="date" value={dataForm} onChange={(e) => setDataForm(e.target.value)} className="w-28 bg-slate-50 border border-slate-200 rounded-xl px-2 text-center text-sm text-slate-600 focus:outline-none focus:border-indigo-500" />
+                <button type="submit" disabled={salvando} className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 shadow-md disabled:opacity-50 flex items-center justify-center w-14 shrink-0">
+                  {salvando ? <Loader2 className="w-6 h-6 animate-spin" /> : <PlusCircle className="w-6 h-6" />}
+                </button>
+             </div>
           </form>
         </div>
       </div>
