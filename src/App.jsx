@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   PlusCircle, Trash2, CheckCircle, Wallet, 
-  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save, PiggyBank, FileSpreadsheet, Pencil
+  TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, Cloud, Loader2, LogOut, Lock, FileText, ShieldAlert, Edit3, X, Save, PiggyBank, FileSpreadsheet, Pencil, AlertTriangle, Check
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -28,9 +28,8 @@ const EMAILS_PERMITIDOS = [
   "fernandomedeiros90@gmail.com"
 ];
 
-// --- Configuração do Firebase (Automática) ---
+// --- Configuração do Firebase ---
 let firebaseConfig;
-
 try {
   if (import.meta.env && import.meta.env.VITE_API_KEY) {
     firebaseConfig = {
@@ -123,7 +122,7 @@ const GraficoMensal = ({ entradas, saidas, investido }) => {
 };
 
 // --- Componente de Login ---
-const LoginScreen = ({ onLoginGoogle, loading, erroPermissao }) => (
+const LoginScreen = ({ onLoginGoogle, loading, erroPermissao, customAlert }) => (
   <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center p-6 text-white text-center">
     <div className="bg-white/10 p-6 rounded-full mb-6 backdrop-blur-sm">
       <Wallet className="w-16 h-16" />
@@ -172,7 +171,6 @@ export default function CadernoDigital() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [erroPermissao, setErroPermissao] = useState(false);
   
-  // Estados de Visualização
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
   const [tipo, setTipo] = useState('saida'); 
   const [descricao, setDescricao] = useState('');
@@ -183,6 +181,49 @@ export default function CadernoDigital() {
   const [itemEmEdicao, setItemEmEdicao] = useState(null);
   const [pdfLibsLoaded, setPdfLibsLoaded] = useState(false);
   const [modalPDF, setModalPDF] = useState(false);
+
+  // --- SISTEMA DE MODAL PERSONALIZADO ---
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: 'alert', // 'alert', 'confirm', 'prompt'
+    title: '',
+    message: '',
+    inputValue: '',
+    placeholder: '',
+    onConfirm: null,
+    onCancel: null
+  });
+
+  // Funções Auxiliares para Chamar os Modais (Substituem alert/confirm/prompt)
+  const showAlert = (title, message) => {
+    return new Promise((resolve) => {
+      setModalConfig({
+        isOpen: true, type: 'alert', title, message,
+        onConfirm: () => { setModalConfig(prev => ({ ...prev, isOpen: false })); resolve(true); },
+        onCancel: () => { setModalConfig(prev => ({ ...prev, isOpen: false })); resolve(true); }
+      });
+    });
+  };
+
+  const showConfirm = (title, message) => {
+    return new Promise((resolve) => {
+      setModalConfig({
+        isOpen: true, type: 'confirm', title, message,
+        onConfirm: () => { setModalConfig(prev => ({ ...prev, isOpen: false })); resolve(true); },
+        onCancel: () => { setModalConfig(prev => ({ ...prev, isOpen: false })); resolve(false); }
+      });
+    });
+  };
+
+  const showPrompt = (title, message, placeholder = '', defaultValue = '') => {
+    return new Promise((resolve) => {
+      setModalConfig({
+        isOpen: true, type: 'prompt', title, message, placeholder, inputValue: defaultValue,
+        onConfirm: (val) => { setModalConfig(prev => ({ ...prev, isOpen: false })); resolve(val); },
+        onCancel: () => { setModalConfig(prev => ({ ...prev, isOpen: false })); resolve(null); }
+      });
+    });
+  };
 
   // Carrega PDF via CDN
   useEffect(() => {
@@ -226,7 +267,7 @@ export default function CadernoDigital() {
     return () => unsubscribe();
   }, []);
 
-  // Busca de Dados
+  // Dados
   useEffect(() => {
     if (!user) return;
     const qTransacoes = query(collection(db, 'artifacts', appId, 'users', user.uid, 'transacoes'));
@@ -258,14 +299,17 @@ export default function CadernoDigital() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Erro login Google:", error);
-      alert("Erro ao conectar com Google.");
+      // Usamos alert nativo aqui pois o componente de modal pode não estar renderizado se não estiver logado, 
+      // mas podemos passar a função via prop se quisermos refinar depois.
+      alert("Erro ao conectar com Google."); 
     } finally {
       setLoginLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    if (window.confirm("Deseja sair do aplicativo?")) await signOut(auth);
+    const confirmou = await showConfirm("Sair do App", "Tem certeza que deseja sair?");
+    if (confirmou) await signOut(auth);
   };
 
   const getPrimeiroNome = () => user?.displayName ? user.displayName.split(' ')[0] : 'Visitante';
@@ -284,7 +328,8 @@ export default function CadernoDigital() {
   };
 
   const criarNovaCaixinha = async () => {
-    const nome = window.prompt("Qual o nome da nova caixinha? (Ex: Reforma, Viagem)");
+    const nome = await showPrompt("Nova Caixinha", "Qual o nome da nova caixinha?", "Ex: Viagem, Reforma");
+    
     if (nome && nome.trim()) {
       const novaLista = [...caixinhas, nome.trim()];
       setCaixinhas(novaLista); 
@@ -293,7 +338,10 @@ export default function CadernoDigital() {
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'config', 'caixinhas'), {
           lista: novaLista
         });
-      } catch (e) { console.error("Erro salvar caixinha", e); }
+      } catch (e) { 
+        console.error("Erro salvar caixinha", e); 
+        showAlert("Erro", "Não foi possível criar a caixinha.");
+      }
     } else {
       setDescricao(""); 
     }
@@ -301,14 +349,15 @@ export default function CadernoDigital() {
 
   // --- GERENCIAR CAIXINHAS (RENOMEAR) ---
   const editarNomeCaixinha = async (nomeAntigo) => {
-    const novoNome = window.prompt("Novo nome para a caixinha:", nomeAntigo);
+    const novoNome = await showPrompt("Renomear Caixinha", `Novo nome para "${nomeAntigo}":`, "Nome novo", nomeAntigo);
+    
     if (!novoNome || novoNome.trim() === "" || novoNome === nomeAntigo) return;
 
     const nomeFinal = novoNome.trim();
     const novaLista = caixinhas.map(c => c === nomeAntigo ? nomeFinal : c);
     setCaixinhas(novaLista);
 
-    const atualizarHistorico = window.confirm(`Deseja atualizar todas as transações antigas de "${nomeAntigo}" para "${nomeFinal}"?`);
+    const atualizarHistorico = await showConfirm("Atualizar Histórico?", `Deseja atualizar todas as transações antigas de "${nomeAntigo}" para "${nomeFinal}"?`);
 
     try {
       await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'config', 'caixinhas'), {
@@ -329,20 +378,19 @@ export default function CadernoDigital() {
             batch.update(documento.ref, { descricao: nomeFinal });
           });
           await batch.commit();
-          alert("Caixinha e histórico atualizados com sucesso!");
+          showAlert("Sucesso", "Caixinha e histórico atualizados!");
         } else {
-          alert("Caixinha renomeada (sem histórico encontrado).");
+          showAlert("Concluído", "Caixinha renomeada (sem histórico encontrado).");
         }
       }
     } catch (e) {
       console.error("Erro ao editar caixinha", e);
-      alert("Erro ao salvar alterações.");
+      showAlert("Erro", "Erro ao salvar alterações.");
     }
   };
 
   // --- GERENCIAR CAIXINHAS (DELETAR COM MIGRAÇÃO) ---
   const deletarCaixinha = async (nomeParaDeletar) => {
-    // 1. Verifica se tem dinheiro na caixinha antes de deletar
     const q = query(
       collection(db, 'artifacts', appId, 'users', user.uid, 'transacoes'),
       where('tipo', '==', 'investimento'),
@@ -357,58 +405,55 @@ export default function CadernoDigital() {
       const temTransacoes = !snapshot.empty;
 
       if (temTransacoes) {
-        // PERGUNTA ONDE O DINHEIRO DEVE IR
-        const resposta = window.prompt(
-          `Atenção: Existem ${snapshot.size} registros guardados em "${nomeParaDeletar}".\n\nPara não perder esse histórico, para qual caixinha você quer mover esse saldo? (Digite o nome exato, ex: Poupança)`,
+        const resposta = await showPrompt(
+          "Atenção: Saldo Encontrado",
+          `Existem ${snapshot.size} registros em "${nomeParaDeletar}".\nPara não perder esse histórico, digite o nome da caixinha de destino (ex: Poupança):`,
+          "Nome da caixinha de destino",
           "Poupança"
         );
         
-        if (resposta === null) return; // Cancelou
+        if (resposta === null) return; 
         
         destino = resposta.trim();
         if (!destino || destino === nomeParaDeletar) {
-          alert("Destino inválido. A exclusão foi cancelada para proteger seus dados.");
+          showAlert("Cancelado", "Destino inválido. A exclusão foi cancelada.");
           return;
         }
         deveMover = true;
       } else {
-        if (!window.confirm(`Tem certeza que deseja excluir a caixinha "${nomeParaDeletar}"?`)) return;
+        if (!await showConfirm("Excluir Caixinha", `Tem certeza que deseja excluir "${nomeParaDeletar}"?`)) return;
       }
 
-      // 2. Prossegue com a exclusão
       const novaLista = caixinhas.filter(c => c !== nomeParaDeletar);
       
-      // Se o destino da migração não existe na lista, vamos adicionar para não dar erro
       let listaFinal = novaLista;
       if (deveMover && !novaLista.includes(destino)) {
-         const criarDestino = window.confirm(`A caixinha de destino "${destino}" não existe. Deseja criá-la agora?`);
+         const criarDestino = await showConfirm("Nova Caixinha", `A caixinha "${destino}" não existe. Deseja criá-la agora?`);
          if(criarDestino) listaFinal = [...novaLista, destino];
          else {
-           alert("Operação cancelada. Destino inexistente.");
+           showAlert("Cancelado", "Operação cancelada.");
            return;
          }
       }
 
       setCaixinhas(listaFinal);
 
-      // Salva nova lista
       await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'config', 'caixinhas'), {
         lista: listaFinal
       });
 
-      // Migra histórico
       if (deveMover) {
         const batch = writeBatch(db);
         snapshot.forEach((doc) => {
           batch.update(doc.ref, { descricao: destino });
         });
         await batch.commit();
-        alert(`Pronto! Saldo movido para "${destino}" e caixinha "${nomeParaDeletar}" excluída.`);
+        showAlert("Sucesso", `Saldo movido para "${destino}" e caixinha excluída.`);
       }
 
     } catch (e) {
       console.error("Erro ao deletar caixinha", e);
-      alert("Erro ao processar exclusão.");
+      showAlert("Erro", "Erro ao processar exclusão.");
     }
   };
 
@@ -423,7 +468,7 @@ export default function CadernoDigital() {
         pago: isPago, observacoes: "", criadoEm: new Date().toISOString()
       });
       setDescricao(''); setValor('');
-    } catch (err) { alert("Erro ao salvar."); }
+    } catch (err) { showAlert("Erro", "Erro ao salvar anotação."); }
     setSalvando(false);
   };
 
@@ -435,7 +480,7 @@ export default function CadernoDigital() {
 
   const removerTransacao = async (id) => {
     if (!user) return;
-    if (window.confirm('Apagar esta anotação permanentemente?')) {
+    if (await showConfirm("Excluir", "Apagar esta anotação permanentemente?")) {
       await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'transacoes', id));
     }
   };
@@ -453,7 +498,7 @@ export default function CadernoDigital() {
       });
       setItemEmEdicao(null); 
     } catch (err) {
-      alert("Erro ao salvar alterações.");
+      showAlert("Erro", "Erro ao salvar alterações.");
     }
   };
 
@@ -482,7 +527,6 @@ export default function CadernoDigital() {
 
   const totalGuardadoGeral = transacoes.filter(t => t.tipo === 'investimento').reduce((acc, curr) => acc + curr.valor, 0);
 
-  // --- Saldo Anterior (Para Extrato) ---
   const calcularSaldoAnterior = () => {
     const inicioDoMes = new Date(anoAtual, mesAtual, 1);
     return transacoes
@@ -525,13 +569,11 @@ export default function CadernoDigital() {
     return true;
   });
 
-  // --- GERADORES DE PDF ---
   const gerarPDF = (tipoRelatorio) => {
     try {
       let doc;
       let autoTableFunc;
 
-      // Opção A: Importação (VSCode / Vercel com npm install)
       try {
         if (typeof jsPDF !== 'undefined') {
           doc = new jsPDF();
@@ -539,16 +581,14 @@ export default function CadernoDigital() {
         }
       } catch(e) {}
 
-      // Opção B: CDN (Fallback para Preview)
       if (!doc && window.jspdf) {
         const { jsPDF } = window.jspdf;
         doc = new jsPDF();
         autoTableFunc = null; 
       }
 
-      // Verificação Final
       if (!doc) {
-        alert("Erro: Biblioteca PDF não encontrada.\n\nSE VOCÊ ESTÁ NO VSCODE:\n1. Certifique-se de ter rodado 'npm install jspdf jspdf-autotable'\n2. Certifique-se de ter descomentado os imports nas linhas 19 e 20.");
+        showAlert("Erro", "Biblioteca PDF não encontrada. Verifique as configurações.");
         return;
       }
 
@@ -558,13 +598,12 @@ export default function CadernoDigital() {
         } else if (doc.autoTable) {
           doc.autoTable(opcoes);
         } else {
-          alert("Erro: Plugin de Tabela (autoTable) não encontrado.");
+          showAlert("Erro", "Plugin de Tabela não encontrado.");
           throw new Error("Plugin missing");
         }
       };
       
       if (tipoRelatorio === 'extrato') {
-        // --- MODO EXTRATO ---
         doc.setFontSize(18); doc.setTextColor(20, 20, 20);
         doc.text(`Extrato Bancário - ${nomeDoMes}`, 14, 22);
         
@@ -579,7 +618,7 @@ export default function CadernoDigital() {
         const tabelaDados = transacoesOrdenadas.map(item => {
           let valorItem = 0;
           if (item.tipo === 'entrada') valorItem = item.valor;
-          else if (item.pago) valorItem = -item.valor; // Saída paga ou investimento
+          else if (item.pago) valorItem = -item.valor; 
           
           saldoCorrente += valorItem;
           
@@ -604,7 +643,6 @@ export default function CadernoDigital() {
         doc.text(`Saldo Final do Período: ${formatarMoeda(saldoCorrente)}`, 14, doc.lastAutoTable.finalY + 10);
 
       } else {
-        // --- MODO RESUMO ---
         doc.setFontSize(18); doc.setTextColor(79, 70, 229);
         doc.text(`Relatório Gerencial - ${nomeDoMes}`, 14, 22);
         doc.setFontSize(10); doc.setTextColor(150);
@@ -637,7 +675,7 @@ export default function CadernoDigital() {
       setModalPDF(false);
     } catch (err) { 
       console.error(err);
-      alert("Erro ao gerar PDF. Verifique o console ou se as bibliotecas estão descomentadas."); 
+      showAlert("Erro", "Erro ao gerar PDF."); 
     }
   };
 
@@ -824,6 +862,58 @@ export default function CadernoDigital() {
           )}
         </div>
       </main>
+
+      {/* --- COMPONENTE DE MODAL (Custom Alert/Confirm/Prompt) --- */}
+      {modalConfig.isOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl relative flex flex-col items-center text-center transform scale-100 transition-all">
+            
+            {/* Ícone */}
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 
+              ${modalConfig.type === 'alert' ? 'bg-amber-100 text-amber-500' : 
+                modalConfig.type === 'confirm' ? 'bg-indigo-100 text-indigo-500' : 'bg-emerald-100 text-emerald-500'}`}>
+              {modalConfig.type === 'alert' && <AlertTriangle className="w-6 h-6" />}
+              {modalConfig.type === 'confirm' && <ShieldAlert className="w-6 h-6" />}
+              {modalConfig.type === 'prompt' && <Edit3 className="w-6 h-6" />}
+            </div>
+
+            <h3 className="text-lg font-bold text-slate-800 mb-2">{modalConfig.title}</h3>
+            <p className="text-sm text-slate-500 mb-6">{modalConfig.message}</p>
+
+            {modalConfig.type === 'prompt' && (
+              <input 
+                type="text" 
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder={modalConfig.placeholder}
+                defaultValue={modalConfig.inputValue}
+                // Ref manual para pegar o valor no onConfirm sem state extra
+                ref={input => input && (input.focus())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') modalConfig.onConfirm(e.currentTarget.value);
+                }}
+                onChange={(e) => modalConfig.inputValue = e.target.value} 
+              />
+            )}
+
+            <div className="flex gap-2 w-full">
+              {modalConfig.type !== 'alert' && (
+                <button 
+                  onClick={modalConfig.onCancel}
+                  className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button 
+                onClick={() => modalConfig.type === 'prompt' ? modalConfig.onConfirm(modalConfig.inputValue) : modalConfig.onConfirm()}
+                className="flex-1 py-3 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-colors"
+              >
+                {modalConfig.type === 'alert' ? 'OK' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Escolha de PDF */}
       {modalPDF && (
